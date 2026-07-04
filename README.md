@@ -13,6 +13,7 @@
   <img src="https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java 21"/>
   <img src="https://img.shields.io/badge/Spring%20Boot-3.3-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" alt="Spring Boot 3.3"/>
   <img src="https://img.shields.io/badge/Spring%20AI-1.0-6DB33F?style=for-the-badge&logo=spring&logoColor=white" alt="Spring AI"/>
+  <img src="https://img.shields.io/badge/Thymeleaf-3-005F0F?style=for-the-badge&logo=thymeleaf&logoColor=white" alt="Thymeleaf"/>
   <img src="https://img.shields.io/badge/PostgreSQL-16%20+%20pgvector-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL + pgvector"/>
   <img src="https://img.shields.io/badge/LLM-100%25%20Local-8A2BE2?style=for-the-badge&logo=ollama&logoColor=white" alt="LLM Local"/>
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
@@ -153,7 +154,7 @@ Todas ancoradas nos chunks do próprio aluno, orquestradas pelo `AiGenerationSer
 |---|---|
 | **Java 21 · Spring Boot 3.3** | Base da aplicação |
 | **Spring Security** | Autenticação real (BCrypt), CSRF, papéis |
-| **Thymeleaf** | UI server-side (sem SPA) — CSS/JS em arquivos separados |
+| **Thymeleaf** | Motor de templates — renderiza o HTML no servidor (SSR), sem SPA; CSS/JS em arquivos separados |
 | **Apache PDFBox / POI · commonmark** | Extração de texto de PDF, DOCX, PPTX, MD |
 | **Spring Data JPA + Hibernate** | Persistência (schema por Hibernate + `SchemaBootstrap` para o que o JPA não cria) |
 
