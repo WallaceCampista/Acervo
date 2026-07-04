@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<details th:fragment="userMenu" class="user-dropdown">
+    <summary class="user-avatar"
+             th:aria-label="'Conta de ' + ${profile.fullName()}">
+        <span class="avatar-initials" th:text="${profile.initials()}">A</span>
+    </summary>
+    <div class="user-menu" role="menu">
+        <div class="user-menu-head">
+            <div class="user-menu-name" th:text="${profile.fullName()}">Usuário</div>
+            <div class="user-menu-contact" th:if="${not #strings.isEmpty(profile.contact)}"
+                 th:text="${profile.contact}">contato</div>
+        </div>
+        <a th:href="@{/profile}" class="user-menu-item" role="menuitem">
+            <span class="ico" aria-hidden="true">⚙</span>
+            <span>Editar perfil</span>
+        </a>
+        <div class="user-menu-section">
+            <label class="user-menu-section-label" for="user-menu-voice">Voz da leitura</label>
+            <select id="user-menu-voice" class="user-menu-voice"
+                    onchange="AcervoTts.setVoice(this.value)"
+                    onclick="event.stopPropagation()"
+                    aria-label="Escolher voz da leitura por voz">
+                <option value="">Padrão do sistema</option>
+            </select>
+        </div>
+        <form th:action="@{/logout}" method="post" class="user-menu-form">
+            <button type="submit" class="user-menu-item destructive" role="menuitem">
+                <span class="ico" aria-hidden="true">⎋</span>
+                <span>Sair</span>
+            </button>
+        </form>
+    </div>
+</details>
+</body>
+</html>

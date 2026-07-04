@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="|${subject.name} — Estudo dirigido|">Estudo</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/acervo.css(v=36)}"/>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+<div class="app">
+    <aside th:replace="~{fragments/sidebar :: sidebar}"></aside>
+    <main class="main" id="main-content" role="main">
+        <header class="chat-header" role="banner">
+            <h1 class="profile-heading">Estudo dirigido</h1>
+            <div class="spacer"></div>
+            <form th:if="${studySession == null}"
+                  th:action="@{|/subjects/${subject.id}/study/start|}" method="post"
+                  data-loading="Preparando sua sessão de estudo…">
+                <button class="btn-primary" type="submit">▶ Iniciar sessão</button>
+            </form>
+            <form th:if="${studySession != null and studySession.status.name() == 'ACTIVE'}"
+                  th:action="@{|/study/${studySession.id}/finish|}" method="post">
+                <button class="btn-outline" type="submit">Encerrar sessão</button>
+            </form>
+            <a class="btn-outline" th:href="@{|/chat?subject=${subject.id}|}">← Voltar</a>
+            <div th:replace="~{fragments/user-menu :: userMenu}"></div>
+        </header>
+
+        <section class="study-body">
+            <div th:if="${studySession == null}" class="study-landing">
+                <div class="study-page-head">
+                    <span class="dot-big study-page-dot" th:style="'background:' + ${subject.color}" aria-hidden="true"></span>
+                    <div class="study-page-head-info">
+                        <span class="study-page-eyebrow">TUTOR SOCRÁTICO</span>
+                        <h2 class="study-page-title">
+                            <em>Estudo dirigido</em><br/>
+                            de <span th:text="${subject.name}">matéria</span>
+                        </h2>
+                        <p class="study-page-sub">
+                            Um tutor conduz a sessão — ele pergunta, você responde, ele
+                            corrige e provoca o próximo passo. Aprenda pensando, não decorando.
+                        </p>
+                        <form th:action="@{|/subjects/${subject.id}/study/start|}" method="post"
+                              class="study-landing-cta" data-loading="Preparando sua sessão de estudo…">
+                            <button class="btn-primary" type="submit">▶ Iniciar nova sessão</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div th:if="${not #lists.isEmpty(sessions)}" class="study-history">
+                    <div class="inicio-section-head">
+                        <h3 class="inicio-section-title">
+                            <span class="inicio-section-eyebrow">HISTÓRICO</span>
+                            Sessões anteriores
+                        </h3>
+                    </div>
+                    <ul class="study-history-list">
+                        <li th:each="s : ${sessions}">
+                            <a th:href="@{|/subjects/${subject.id}/study?session=${s.id}|}"
+                               class="study-history-item">
+                                <span class="study-history-status"
+                                      th:classappend="' status-' + ${s.status.name().toLowerCase()}"
+                                      th:text="${s.status}">ATIVA</span>
+                                <span class="study-history-date"
+                                      th:text="${#temporals.format(s.startedAt, 'dd/MM/yyyy HH:mm')}">data</span>
+                                <span class="study-history-turns"
+                                      th:text="|${s.turnCount} turnos|">0 turnos</span>
+                                <span class="study-history-arrow" aria-hidden="true">→</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div th:if="${studySession != null}" class="study-thread">
+                <div class="study-status">
+                    <span class="study-status-badge"
+                          th:classappend="' status-' + ${studySession.status.name().toLowerCase()}"
+                          th:text="${studySession.status}">ATIVA</span>
+                    <span th:text="|${studySession.turnCount} turnos|">0 turnos</span>
+                </div>
+                <div class="study-turns">
+                    <article th:each="t : ${studySession.turns}"
+                             th:class="${t.role.name() == 'TUTOR' ? 'study-turn tutor' : 'study-turn aluno'}">
+                        <div class="study-role" th:text="${t.role.name() == 'TUTOR' ? 'Tutor' : 'Você'}">Tutor</div>
+                        <div class="study-content" th:text="${t.content}">conteúdo</div>
+                    </article>
+                </div>
+
+                <form th:if="${studySession.status.name() == 'ACTIVE'}"
+                      class="composer study-composer" role="search"
+                      th:action="@{|/study/${studySession.id}/respond|}" method="post"
+                      data-loading="O tutor está avaliando sua resposta…">
+                    <label class="visually-hidden" for="study-answer">Sua resposta</label>
+                    <textarea id="study-answer" name="answer" rows="2"
+                              placeholder="Responda ao tutor…" required></textarea>
+                    <button class="send" type="submit" aria-label="Enviar resposta">➤</button>
+                </form>
+            </div>
+        </section>
+    </main>
+</div>
+<script th:src="@{/js/acervo.js(v=36)}" defer></script>
+</body>
+</html>

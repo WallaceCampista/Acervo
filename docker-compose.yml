@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: acervo-postgres
+    environment:
+      POSTGRES_DB: acervo
+      POSTGRES_USER: acervo
+      POSTGRES_PASSWORD: acervo
+    ports:
+      - "5432:5432"
+    volumes:
+      - acervo-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acervo -d acervo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  acervo-pg-data:

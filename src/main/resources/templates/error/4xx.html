@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="#{error.4xx.title}">Página não encontrada — Acervo</title>
+    <link rel="stylesheet" th:href="@{/css/acervo.css(v=9)}"/>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<div class="app">
+    <main class="main empty-app" role="main">
+        <div class="error-card">
+            <div class="error-code" aria-hidden="true" th:text="${status} ?: '4xx'">404</div>
+            <h2 th:text="#{error.4xx.heading}">Algo não foi encontrado</h2>
+            <p th:text="#{error.4xx.message}">
+                A página ou recurso que você procura não existe ou foi movido.
+            </p>
+            <a class="btn-primary" th:href="@{/chat}" th:text="#{error.action.back}">Voltar ao Acervo</a>
+        </div>
+    </main>
+</div>
+</body>
+</html>

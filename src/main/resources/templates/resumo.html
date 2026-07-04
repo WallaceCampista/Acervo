@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Resumo — Acervo</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/acervo.css(v=36)}"/>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+<div class="app">
+    <aside th:replace="~{fragments/sidebar :: sidebar}"></aside>
+    <main class="main" id="main-content" role="main">
+        <header class="chat-header" role="banner">
+            <h1 class="profile-heading">Resumo</h1>
+            <div class="spacer"></div>
+            <div th:replace="~{fragments/user-menu :: userMenu}"></div>
+        </header>
+
+        <section class="resumo-body">
+
+            <!-- Hero apenas no passo 1 (entrada). Nos passos seguintes o
+                 stepper já carrega a identidade da tela e a área de trabalho
+                 fica mais focada. -->
+            <div class="resumo-hero" th:if="${selectedSubject == null}">
+                <div class="resumo-hero-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none"
+                         stroke="currentColor" stroke-width="1.5"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 4h9l3 3v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/>
+                        <line x1="8" y1="11" x2="16" y2="11"/>
+                        <line x1="8" y1="15" x2="14" y2="15"/>
+                    </svg>
+                </div>
+                <div class="resumo-hero-info">
+                    <span class="study-page-eyebrow">RESUMOS POR DOCUMENTO</span>
+                    <h2 class="study-page-title">
+                        Resumos <em>sob demanda</em>.
+                    </h2>
+                    <p class="study-page-sub">
+                        Selecione a matéria, escolha o documento e o tipo de resumo —
+                        parágrafo curto, página completa ou mapa mental textual. O
+                        progresso aparece em tempo real conforme o modelo processa.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Stepper -->
+            <ol class="resumo-stepper" aria-label="Progresso do fluxo">
+                <li th:classappend="${selectedSubject == null ? 'active' : 'done'}">
+                    <span class="step-num">1</span>
+                    <span class="step-label">Matéria</span>
+                </li>
+                <li th:classappend="${selectedSubject == null ? '' : (selectedDoc == null ? ' active' : ' done')}">
+                    <span class="step-num">2</span>
+                    <span class="step-label">Documento</span>
+                </li>
+                <li th:classappend="${selectedDoc == null ? '' : ' active'}">
+                    <span class="step-num">3</span>
+                    <span class="step-label">Tipo de resumo</span>
+                </li>
+            </ol>
+
+            <!-- PASSO 1 — selecionar matéria -->
+            <section class="resumo-step" th:if="${selectedSubject == null}"
+                     aria-labelledby="resumo-step1-title">
+                <div class="resumo-step-head">
+                    <span class="resumo-step-tag">PASSO 1</span>
+                    <h3 id="resumo-step1-title">Selecione a matéria</h3>
+                </div>
+                <div th:if="${#lists.isEmpty(subjects)}" class="study-empty">
+                    <div class="study-empty-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="28" height="28" fill="none"
+                             stroke="currentColor" stroke-width="1.4"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>
+                        </svg>
+                    </div>
+                    <h3>Nenhuma matéria ainda</h3>
+                    <p>Crie uma em <a th:href="@{/import}" class="auth-link">Importação</a>
+                       e suba alguns documentos pra resumir.</p>
+                </div>
+                <div class="resumo-subject-grid" th:if="${not #lists.isEmpty(subjects)}">
+                    <a th:each="s : ${subjects}"
+                       th:href="@{/resumo(subject=${s.id})}"
+                       class="resumo-subject-tile">
+                        <span class="resumo-subject-dot" th:style="'background:' + ${s.color}" aria-hidden="true"></span>
+                        <div class="resumo-subject-info">
+                            <h4 th:text="${s.name}">Matéria</h4>
+                            <p th:text="|${#lists.size(s.documents)} ${#lists.size(s.documents) == 1 ? 'documento' : 'documentos'}|">0 documentos</p>
+                        </div>
+                        <span class="resumo-subject-arrow" aria-hidden="true">→</span>
+                    </a>
+                </div>
+            </section>
+
+            <!-- PASSO 2 — selecionar documento -->
+            <section class="resumo-step" th:if="${selectedSubject != null and selectedDoc == null}"
+                     aria-labelledby="resumo-step2-title">
+                <div class="resumo-step-head">
+                    <span class="resumo-step-tag">PASSO 2</span>
+                    <h3 id="resumo-step2-title">Selecione o documento</h3>
+                    <a class="btn-outline resumo-step-back"
+                       th:href="@{/resumo}"
+                       title="Voltar para escolher matéria">← Trocar matéria</a>
+                </div>
+
+                <div class="resumo-subject-pill">
+                    <span class="resumo-subject-dot" th:style="'background:' + ${selectedSubject.color}" aria-hidden="true"></span>
+                    <span class="resumo-subject-pill-name" th:text="${selectedSubject.name}">Matéria</span>
+                </div>
+
+                <div th:if="${#lists.isEmpty(documents)}" class="study-empty">
+                    <div class="study-empty-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="28" height="28" fill="none"
+                             stroke="currentColor" stroke-width="1.4"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 3v4a1 1 0 0 0 1 1h4"/>
+                            <path d="M5 8a3 3 0 0 1 3-3h6l5 5v9a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V8Z"/>
+                        </svg>
+                    </div>
+                    <h3>Nenhum documento indexado</h3>
+                    <p>Importe e aguarde a indexação concluir em
+                       <a class="auth-link" th:href="@{|/import?subject=${selectedSubject.id}|}">Importação</a>.</p>
+                </div>
+
+                <div class="resumo-doc-grid" th:if="${not #lists.isEmpty(documents)}">
+                    <a th:each="d : ${documents}"
+                       th:href="@{/resumo(subject=${selectedSubject.id},doc=${d.id})}"
+                       class="resumo-doc-tile">
+                        <span class="badge" th:classappend="' ext-' + ${d.extension}" th:text="${d.extension}">PDF</span>
+                        <div class="resumo-doc-info">
+                            <h4 th:text="${d.originalName}">nome</h4>
+                            <p>
+                                <span th:text="${#numbers.formatDecimal(d.sizeBytes/1024.0/1024.0,1,2)} + ' MB'">0 MB</span>
+                                <span th:if="${d.pages != null}" aria-hidden="true">·</span>
+                                <span th:if="${d.pages != null}" th:text="${d.pages} + ' págs'">páginas</span>
+                            </p>
+                        </div>
+                        <span class="resumo-subject-arrow" aria-hidden="true">→</span>
+                    </a>
+                </div>
+            </section>
+
+            <!-- PASSO 3 — selecionar tipo de resumo -->
+            <section class="resumo-step" th:if="${selectedDoc != null}"
+                     aria-labelledby="resumo-step3-title">
+                <div class="resumo-step-head">
+                    <span class="resumo-step-tag">PASSO 3</span>
+                    <h3 id="resumo-step3-title">Escolha o tipo de resumo</h3>
+                    <a class="btn-outline resumo-step-back"
+                       th:href="@{/resumo(subject=${selectedSubject.id})}"
+                       title="Voltar para escolher outro documento">← Trocar documento</a>
+                </div>
+
+                <div class="resumo-context">
+                    <div class="resumo-context-row">
+                        <span class="resumo-context-label">MATÉRIA</span>
+                        <span class="resumo-subject-dot resumo-subject-dot-sm"
+                              th:style="'background:' + ${selectedSubject.color}" aria-hidden="true"></span>
+                        <span class="resumo-context-value" th:text="${selectedSubject.name}">Matéria</span>
+                    </div>
+                    <div class="resumo-context-row">
+                        <span class="resumo-context-label">DOCUMENTO</span>
+                        <span class="badge"
+                              th:classappend="' ext-' + ${selectedDoc.extension}"
+                              th:text="${selectedDoc.extension}">PDF</span>
+                        <span class="resumo-context-value" th:text="${selectedDoc.originalName}">nome</span>
+                    </div>
+                </div>
+
+                <div class="resumo-type-tabs" role="tablist" aria-label="Tipo de resumo">
+                    <button type="button" class="resumo-tab active"
+                            data-target="PARAGRAFO" role="tab" aria-selected="true"
+                            onclick="AcervoResumo.selectTab(this)">
+                        <span class="resumo-tab-glyph" aria-hidden="true">¶</span>
+                        <span class="resumo-tab-text">
+                            <span class="resumo-tab-name">1 parágrafo</span>
+                            <span class="resumo-tab-hint">ideia central · 5 linhas</span>
+                        </span>
+                    </button>
+                    <button type="button" class="resumo-tab"
+                            data-target="PAGINA" role="tab" aria-selected="false"
+                            onclick="AcervoResumo.selectTab(this)">
+                        <span class="resumo-tab-glyph" aria-hidden="true">▤</span>
+                        <span class="resumo-tab-text">
+                            <span class="resumo-tab-name">1 página</span>
+                            <span class="resumo-tab-hint">resumo completo · 12–20 linhas</span>
+                        </span>
+                    </button>
+                    <button type="button" class="resumo-tab"
+                            data-target="MAPA_MENTAL" role="tab" aria-selected="false"
+                            onclick="AcervoResumo.selectTab(this)">
+                        <span class="resumo-tab-glyph" aria-hidden="true">◇</span>
+                        <span class="resumo-tab-text">
+                            <span class="resumo-tab-name">Mapa mental</span>
+                            <span class="resumo-tab-hint">hierarquia textual · 4 níveis</span>
+                        </span>
+                    </button>
+                </div>
+
+                <div class="resumo-type-grid"
+                     th:attr="data-doc-id=${selectedDoc.id}">
+                    <article class="resumo-type" data-level="PARAGRAFO" role="tabpanel">
+                        <div class="resumo-type-head">
+                            <div class="resumo-type-glyph" aria-hidden="true">¶</div>
+                            <div class="resumo-type-info">
+                                <h4>1 parágrafo</h4>
+                                <p>Capta a ideia central em até 5 linhas. Bom pra
+                                   lembrar do que se trata o documento.</p>
+                            </div>
+                            <button type="button" class="btn-primary"
+                                    onclick="AcervoResumo.start(this, 'PARAGRAFO')">Gerar resumo</button>
+                        </div>
+                        <div class="resumo-progress" hidden>
+                            <div class="resumo-progress-head">
+                                <span class="resumo-progress-phase">Iniciando…</span>
+                                <span class="resumo-progress-pct">0%</span>
+                            </div>
+                            <div class="resumo-progress-bar">
+                                <div class="resumo-progress-fill"></div>
+                            </div>
+                            <div class="resumo-progress-foot">
+                                <span class="resumo-progress-meta"></span>
+                            </div>
+                        </div>
+                        <div class="resumo-result" hidden></div>
+                    </article>
+
+                    <article class="resumo-type" data-level="PAGINA" role="tabpanel" hidden>
+                        <div class="resumo-type-head">
+                            <div class="resumo-type-glyph" aria-hidden="true">▤</div>
+                            <div class="resumo-type-info">
+                                <h4>1 página</h4>
+                                <p>Resumo completo em 12 a 20 linhas, com seções/capítulos
+                                   quando fizer sentido.</p>
+                            </div>
+                            <button type="button" class="btn-primary"
+                                    onclick="AcervoResumo.start(this, 'PAGINA')">Gerar resumo</button>
+                        </div>
+                        <div class="resumo-progress" hidden>
+                            <div class="resumo-progress-head">
+                                <span class="resumo-progress-phase">Iniciando…</span>
+                                <span class="resumo-progress-pct">0%</span>
+                            </div>
+                            <div class="resumo-progress-bar">
+                                <div class="resumo-progress-fill"></div>
+                            </div>
+                            <div class="resumo-progress-foot">
+                                <span class="resumo-progress-meta"></span>
+                            </div>
+                        </div>
+                        <div class="resumo-result" hidden></div>
+                    </article>
+
+                    <article class="resumo-type" data-level="MAPA_MENTAL" role="tabpanel" hidden>
+                        <div class="resumo-type-head">
+                            <div class="resumo-type-glyph" aria-hidden="true">◇</div>
+                            <div class="resumo-type-info">
+                                <h4>Mapa mental</h4>
+                                <p>Hierarquia textual em até 4 níveis. Ótimo pra navegar
+                                   pela estrutura do conteúdo.</p>
+                            </div>
+                            <button type="button" class="btn-primary"
+                                    onclick="AcervoResumo.start(this, 'MAPA_MENTAL')">Gerar resumo</button>
+                        </div>
+                        <div class="resumo-progress" hidden>
+                            <div class="resumo-progress-head">
+                                <span class="resumo-progress-phase">Iniciando…</span>
+                                <span class="resumo-progress-pct">0%</span>
+                            </div>
+                            <div class="resumo-progress-bar">
+                                <div class="resumo-progress-fill"></div>
+                            </div>
+                            <div class="resumo-progress-foot">
+                                <span class="resumo-progress-meta"></span>
+                            </div>
+                        </div>
+                        <pre class="resumo-result resumo-result-mindmap" hidden></pre>
+                    </article>
+                </div>
+
+                <!-- Pré-popula resultados já gerados anteriormente -->
+                <div class="resumo-existing-data" hidden>
+                    <div th:each="s : ${summaries}"
+                         th:data-level="${s.level.name()}"
+                         th:data-content="${s.content}"></div>
+                </div>
+            </section>
+
+        </section>
+    </main>
+</div>
+<script th:src="@{/js/acervo.js(v=36)}" defer></script>
+</body>
+</html>

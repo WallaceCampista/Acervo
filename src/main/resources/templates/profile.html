@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Perfil — Acervo</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/acervo.css(v=36)}"/>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+<div class="app">
+    <aside th:replace="~{fragments/sidebar :: sidebar}"></aside>
+    <main class="main" id="main-content" role="main">
+        <header class="chat-header" role="banner">
+            <h1 class="profile-heading">Conta</h1>
+            <div class="spacer"></div>
+            <a class="btn-outline" th:href="@{/chat}">← Voltar ao chat</a>
+        </header>
+
+        <section class="profile-body">
+            <nav class="profile-tabs" role="tablist" aria-label="Seções da conta">
+                <a th:href="@{/profile(tab='personal')}" role="tab"
+                   class="profile-tab"
+                   th:classappend="${tab == 'personal'} ? ' active' : ''"
+                   th:aria-selected="${tab == 'personal'}">Dados pessoais</a>
+                <a th:href="@{/profile(tab='security')}" role="tab"
+                   class="profile-tab"
+                   th:classappend="${tab == 'security'} ? ' active' : ''"
+                   th:aria-selected="${tab == 'security'}">Segurança</a>
+                <a th:href="@{/profile(tab='shares')}" role="tab"
+                   class="profile-tab"
+                   th:classappend="${tab == 'shares'} ? ' active' : ''"
+                   th:aria-selected="${tab == 'shares'}">Compartilhamentos</a>
+                <a th:href="@{/profile(tab='audit')}" role="tab"
+                   class="profile-tab"
+                   th:classappend="${tab == 'audit'} ? ' active' : ''"
+                   th:aria-selected="${tab == 'audit'}">Auditoria</a>
+            </nav>
+
+            <!-- Dados pessoais -->
+            <section th:if="${tab == 'personal'}" class="profile-panel">
+                <form th:action="@{/profile}" method="post" class="profile-form"
+                      th:object="${profile}">
+                    <div th:if="${saved}" class="profile-saved" role="status">
+                        Perfil salvo.
+                    </div>
+                    <div class="profile-field">
+                        <label>Email</label>
+                        <input type="email" th:value="*{email}" disabled/>
+                    </div>
+                    <div class="profile-field">
+                        <label for="firstName">Nome</label>
+                        <input id="firstName" name="firstName" type="text" maxlength="80"
+                               th:value="*{firstName}" autocomplete="given-name"/>
+                    </div>
+                    <div class="profile-field">
+                        <label for="lastName">Sobrenome</label>
+                        <input id="lastName" name="lastName" type="text" maxlength="80"
+                               th:value="*{lastName}" autocomplete="family-name"/>
+                    </div>
+                    <div class="profile-field">
+                        <label for="contact">Contato</label>
+                        <input id="contact" name="contact" type="text" maxlength="160"
+                               th:value="*{contact}" placeholder="email, telefone, etc."/>
+                    </div>
+                    <div class="profile-actions">
+                        <button class="btn-primary" type="submit">Salvar</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Segurança -->
+            <section th:if="${tab == 'security'}" class="profile-panel">
+                <form th:action="@{/profile/password}" method="post" class="profile-form">
+                    <div th:if="${saved}" class="profile-saved" role="status">
+                        Senha atualizada. As outras sessões foram encerradas.
+                    </div>
+                    <div th:if="${error == 'current'}" class="profile-error" role="alert">
+                        Senha atual incorreta.
+                    </div>
+                    <div th:if="${error == 'mismatch'}" class="profile-error" role="alert">
+                        A confirmação não bate com a nova senha.
+                    </div>
+                    <div th:if="${error == 'length'}" class="profile-error" role="alert">
+                        A nova senha precisa ter pelo menos 6 caracteres.
+                    </div>
+                    <div class="profile-field">
+                        <label for="current-pw">Senha atual</label>
+                        <input id="current-pw" name="currentPassword" type="password"
+                               required autocomplete="current-password"/>
+                    </div>
+                    <div class="profile-field">
+                        <label for="new-pw">Nova senha</label>
+                        <input id="new-pw" name="newPassword" type="password"
+                               minlength="6" required autocomplete="new-password"/>
+                    </div>
+                    <div class="profile-field">
+                        <label for="confirm-pw">Confirmar nova senha</label>
+                        <input id="confirm-pw" name="confirmPassword" type="password"
+                               minlength="6" required autocomplete="new-password"/>
+                    </div>
+                    <div class="profile-actions">
+                        <button class="btn-primary" type="submit">Trocar senha</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Compartilhamentos -->
+            <section th:if="${tab == 'shares'}" class="profile-panel">
+                <h2 class="profile-section-title">Links de compartilhamento</h2>
+                <p class="profile-section-lede">
+                    Compartilhe uma matéria em modo leitura via link. Quem abrir
+                    o link vê documentos e conversas, mas não pode alterar.
+                </p>
+                <div th:if="${saved}" class="profile-saved" role="status">
+                    Alterações salvas.
+                </div>
+                <div th:if="${#lists.isEmpty(shares)}" class="profile-empty">
+                    Nenhum compartilhamento ainda. Crie um na página da matéria.
+                </div>
+                <ul class="share-list" th:if="${not #lists.isEmpty(shares)}">
+                    <li th:each="s : ${shares}" class="share-item">
+                        <div class="grow">
+                            <div class="share-subject"
+                                 th:text="${s.subject.name}">Matéria</div>
+                            <div class="share-link">
+                                <code th:text="|/shared/${s.token}|">/shared/abc</code>
+                                <span class="share-status share-status-active"
+                                      th:if="${s.active}">ativo</span>
+                                <span class="share-status share-status-revoked"
+                                      th:unless="${s.active}">revogado</span>
+                            </div>
+                            <div class="share-meta" th:if="${s.label}"
+                                 th:text="${s.label}">label</div>
+                        </div>
+                        <form th:if="${s.active}"
+                              th:action="@{|/shares/${s.id}/revoke|}" method="post">
+                            <button class="btn-outline" type="submit">Revogar</button>
+                        </form>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- Auditoria -->
+            <section th:if="${tab == 'audit'}" class="profile-panel">
+                <h2 class="profile-section-title">Atividade recente</h2>
+                <p class="profile-section-lede">
+                    Últimas 50 ações registradas na sua conta.
+                </p>
+                <div th:if="${#lists.isEmpty(auditEntries)}" class="profile-empty">
+                    Sem atividade registrada ainda.
+                </div>
+                <ul class="audit-list" th:if="${not #lists.isEmpty(auditEntries)}">
+                    <li th:each="a : ${auditEntries}" class="audit-item">
+                        <span class="audit-action" th:text="${a.action}">AÇÃO</span>
+                        <span class="audit-at"
+                              th:text="${#temporals.format(a.at, 'dd/MM/yyyy HH:mm:ss')}">data</span>
+                        <span class="audit-payload" th:if="${a.payload}"
+                              th:text="${a.payload}">payload</span>
+                    </li>
+                </ul>
+            </section>
+        </section>
+    </main>
+</div>
+<script th:src="@{/js/acervo.js(v=36)}" defer></script>
+</body>
+</html>

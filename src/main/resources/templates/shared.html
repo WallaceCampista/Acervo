@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="|${subject.name} — Acervo compartilhado|">Compartilhado</title>
+    <link rel="stylesheet" th:href="@{/css/acervo.css(v=36)}"/>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500&display=swap" rel="stylesheet"/>
+</head>
+<body class="landing-body">
+<main class="shared-view" role="main">
+    <header class="shared-head">
+        <div class="shared-eyebrow">ACERVO COMPARTILHADO · SOMENTE LEITURA</div>
+        <h1 class="shared-title">
+            <span class="dot-big" th:style="'background:' + ${subject.color}" aria-hidden="true"></span>
+            <span th:text="${subject.name}">Matéria</span>
+        </h1>
+        <p class="shared-lede" th:if="${share.label}" th:text="${share.label}">contexto</p>
+        <p class="shared-meta">
+            Compartilhado por
+            <strong th:text="${share.createdBy.fullName()}">dono</strong> em
+            <span th:text="${#temporals.format(share.createdAt, 'dd/MM/yyyy')}">data</span>.
+        </p>
+    </header>
+
+    <section class="shared-section">
+        <h2 class="shared-section-title">Documentos</h2>
+        <div th:if="${#lists.isEmpty(documents)}" class="shared-empty">
+            Nenhum documento ainda.
+        </div>
+        <ul class="shared-doc-list" th:if="${not #lists.isEmpty(documents)}">
+            <li th:each="d : ${documents}" class="shared-doc-item">
+                <span class="badge" th:classappend="' ext-' + ${d.extension}"
+                      th:text="${d.extension}">PDF</span>
+                <div class="grow">
+                    <div class="doc" th:text="${d.originalName}">doc</div>
+                    <div class="m">
+                        <span th:if="${d.pages != null}"
+                              th:text="${d.pages + ' págs'}">0 págs</span>
+                        <span th:text="${d.status}">status</span>
+                    </div>
+                </div>
+            </li>
+        </ul>
+    </section>
+
+    <section class="shared-section">
+        <h2 class="shared-section-title">Conversas</h2>
+        <div th:if="${#lists.isEmpty(conversations)}" class="shared-empty">
+            Nenhuma conversa registrada nessa matéria.
+        </div>
+        <ul class="shared-conv-list" th:if="${not #lists.isEmpty(conversations)}">
+            <li th:each="c : ${conversations}" class="shared-conv-item">
+                <div class="t" th:text="${c.title}">Título</div>
+                <div class="m" th:text="${#lists.size(c.messages) + ' mensagens'}">0 mensagens</div>
+            </li>
+        </ul>
+    </section>
+
+    <footer class="shared-foot">
+        <span>Acervo · modo somente leitura · sem acesso ao chat</span>
+    </footer>
+</main>
+</body>
+</html>

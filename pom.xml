@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.5</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.acervo</groupId>
+    <artifactId>acervo</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <name>Acervo</name>
+    <description>RAG por matéria — estudo aumentado com Spring Boot + Thymeleaf</description>
+
+    <properties>
+        <java.version>21</java.version>
+        <spring-ai.version>1.0.0-M3</spring-ai.version>
+        <pdfbox.version>3.0.3</pdfbox.version>
+        <poi.version>5.3.0</poi.version>
+        <!-- Lombok ≥ 1.18.40 é necessário para JDKs 24/25/26.
+             O default do Spring Boot 3.3.5 (1.18.34) só funciona até Java 22. -->
+        <lombok.version>1.18.42</lombok.version>
+        <!-- 1.21.x corrige incompatibilidade com Docker Desktop 29.x no macOS. -->
+        <testcontainers.version>1.21.3</testcontainers.version>
+    </properties>
+
+    <dependencies>
+        <!-- Web + Thymeleaf -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>nz.net.ultraq.thymeleaf</groupId>
+            <artifactId>thymeleaf-layout-dialect</artifactId>
+            <version>3.3.0</version>
+        </dependency>
+
+        <!-- Auth -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.thymeleaf.extras</groupId>
+            <artifactId>thymeleaf-extras-springsecurity6</artifactId>
+        </dependency>
+
+        <!-- Persistência -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Spring AI: chat + embeddings + pgvector -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
+            <version>${spring-ai.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-pgvector-store-spring-boot-starter</artifactId>
+            <version>${spring-ai.version}</version>
+        </dependency>
+
+        <!-- Extração de texto -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>${pdfbox.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.commonmark</groupId>
+            <artifactId>commonmark</artifactId>
+            <version>0.22.0</version>
+        </dependency>
+
+        <!-- Utilitários -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <!-- Métricas no formato Prometheus expostas em /actuator/prometheus -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <!-- AspectJ runtime habilita @Timed em métodos comuns (sem dele,
+             só pinta beans de actuator). -->
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
+        </dependency>
+        <!-- Cache de embedding de queries (CachingEmbeddingModel). -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Testes -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <repositories>
+        <repository>
+            <id>spring-milestones</id>
+            <url>https://repo.spring.io/milestone</url>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+    </repositories>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <jvmArguments>--enable-native-access=ALL-UNNAMED</jvmArguments>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <!-- 0.8.13 adicionou suporte a bytecode Java 25 (major v69). -->
+                <version>0.8.13</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals><goal>prepare-agent</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals><goal>report</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>check-rag-coverage</id>
+                        <phase>verify</phase>
+                        <goals><goal>check</goal></goals>
+                        <configuration>
+                            <rules>
+                                <!--
+                                  Cobertura mínima de 60% por LINE nas packages
+                                  críticas do RAG e ingestão. service/ tem código
+                                  CRUD trivial e ficou fora por enquanto.
+                                -->
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <includes>
+                                        <include>com.acervo.rag.*</include>
+                                        <include>com.acervo.ingest.*</include>
+                                    </includes>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.60</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <environmentVariables>
+                        <DOCKER_HOST>${testcontainers.docker.host}</DOCKER_HOST>
+                        <!-- Ryuk (cleanup) tenta montar o socket como volume,
+                             o que falha no Docker Desktop macOS por causa do
+                             docker.raw.sock. Como os containers usados são
+                             estáticos com .withReuse=true, deixar pro Docker
+                             Desktop gerenciar é seguro. -->
+                        <TESTCONTAINERS_RYUK_DISABLED>true</TESTCONTAINERS_RYUK_DISABLED>
+                    </environmentVariables>
+                    <!-- Docker Desktop 29.x exige API ≥1.40. docker-java
+                         default é 1.32, então força via system property. -->
+                    <systemPropertyVariables>
+                        <api.version>1.43</api.version>
+                        <!-- Mockito/Byte Buddy ainda não declaram suporte
+                             oficial a Java 25; modo experimental destrava. -->
+                        <net.bytebuddy.experimental>true</net.bytebuddy.experimental>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!--
+          O symlink padrão em /var/run/docker.sock no macOS aponta pra um
+          proxy do Docker Desktop que devolve 400 no GET /info — o
+          Testcontainers não consegue inicializar com ele. O socket "real"
+          fica em ~/Library/Containers/com.docker.docker/Data/docker-cli.sock.
+          Este profile só ativa em macOS; em Linux/CI o default fica
+          `unix:///var/run/docker.sock` que é o caminho nativo.
+        -->
+        <profile>
+            <id>mac-docker-desktop</id>
+            <activation>
+                <os><family>mac</family></os>
+            </activation>
+            <properties>
+                <testcontainers.docker.host>unix://${user.home}/Library/Containers/com.docker.docker/Data/docker.raw.sock</testcontainers.docker.host>
+            </properties>
+        </profile>
+        <profile>
+            <id>linux-docker</id>
+            <activation>
+                <os><family>unix</family><name>Linux</name></os>
+            </activation>
+            <properties>
+                <testcontainers.docker.host>unix:///var/run/docker.sock</testcontainers.docker.host>
+            </properties>
+        </profile>
+    </profiles>
+</project>

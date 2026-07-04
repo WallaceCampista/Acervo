@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="|${subject.name} — Flashcards|">Flashcards</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/acervo.css(v=36)}"/>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+<div class="app">
+    <aside th:replace="~{fragments/sidebar :: sidebar}"></aside>
+    <main class="main" id="main-content" role="main">
+        <header class="chat-header" role="banner">
+            <h1 class="profile-heading">Flashcards</h1>
+            <span class="meta" th:text="|${dueCount} pendentes · ${totalCount} totais|">0 de 0</span>
+            <div class="spacer"></div>
+            <form th:action="@{|/subjects/${subject.id}/flashcards/generate|}" method="post"
+                  data-loading="Gerando seus flashcards…">
+                <input type="hidden" name="count" value="20"/>
+                <button class="btn-primary" type="submit">＋ Gerar 20 novos</button>
+            </form>
+            <a class="btn-outline" th:href="@{|/chat?subject=${subject.id}|}">← Voltar</a>
+            <div th:replace="~{fragments/user-menu :: userMenu}"></div>
+        </header>
+
+        <section class="flashcards-body">
+            <div class="study-page-head">
+                <span class="dot-big study-page-dot" th:style="'background:' + ${subject.color}" aria-hidden="true"></span>
+                <div class="study-page-head-info">
+                    <span class="study-page-eyebrow">REVISÃO ESPAÇADA</span>
+                    <h2 class="study-page-title">
+                        <em>Flashcards</em> de <span th:text="${subject.name}">matéria</span>
+                    </h2>
+                    <p class="study-page-sub">
+                        Algoritmo SM-2: cards que você acerta voltam mais tarde,
+                        os que erra voltam logo. Avalie honestamente.
+                    </p>
+                </div>
+            </div>
+
+            <div th:if="${dueCount == 0 and totalCount == 0}" class="study-empty">
+                <div class="study-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none"
+                         stroke="currentColor" stroke-width="1.4"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="5" width="18" height="14" rx="3"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                </div>
+                <h3>Nenhum flashcard ainda</h3>
+                <p>Clique em <strong>＋ Gerar 20 novos</strong> no topo pra criar a partir
+                   do material da matéria.</p>
+            </div>
+
+            <div th:if="${dueCount == 0 and totalCount > 0}" class="study-success">
+                <span class="study-success-mark" aria-hidden="true">✓</span>
+                <div>
+                    <strong>Tudo em dia.</strong>
+                    Não há cards pra revisar agora. Volte mais tarde.
+                </div>
+            </div>
+
+            <div th:if="${dueCount > 0}" class="flashcard-review" id="flashcard-review">
+                <div class="flashcard-progress">
+                    <span class="flashcard-progress-eyebrow">CARD</span>
+                    <span id="fc-counter" th:text="|1 / ${dueCount}|">1 / 0</span>
+                </div>
+                <article class="flashcard">
+                    <div class="flashcard-face flashcard-question">
+                        <div class="flashcard-label">PERGUNTA</div>
+                        <div class="flashcard-text" id="fc-question">…</div>
+                        <div class="flashcard-actions">
+                            <button type="button" class="btn-primary" id="fc-reveal">Mostrar resposta</button>
+                        </div>
+                    </div>
+                    <div class="flashcard-face flashcard-answer" hidden>
+                        <div class="flashcard-label">RESPOSTA</div>
+                        <div class="flashcard-text" id="fc-answer">…</div>
+                        <div class="flashcard-source" id="fc-source"></div>
+                        <div class="flashcard-grade-label">Como você foi?</div>
+                        <div class="flashcard-grades" role="group" aria-label="Avaliar revisão">
+                            <button type="button" class="btn-grade grade-again" data-quality="1">
+                                <span class="btn-grade-key">1</span>
+                                <span>Errei</span>
+                            </button>
+                            <button type="button" class="btn-grade grade-hard"  data-quality="3">
+                                <span class="btn-grade-key">2</span>
+                                <span>Difícil</span>
+                            </button>
+                            <button type="button" class="btn-grade grade-good"  data-quality="4">
+                                <span class="btn-grade-key">3</span>
+                                <span>Acertei</span>
+                            </button>
+                            <button type="button" class="btn-grade grade-easy"  data-quality="5">
+                                <span class="btn-grade-key">4</span>
+                                <span>Fácil</span>
+                            </button>
+                        </div>
+                    </div>
+                </article>
+
+                <div class="flashcard-data" hidden>
+                    <div th:each="c : ${dueCards}" class="fc-item"
+                         th:data-id="${c.id}"
+                         th:data-question="${c.question}"
+                         th:data-answer="${c.answer}"
+                         th:data-source="${c.sourceDoc} ?: ''"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+<script th:src="@{/js/acervo.js(v=36)}" defer></script>
+</body>
+</html>

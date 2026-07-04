@@ -1,0 +1,45 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/acervo
+    username: acervo
+    password: acervo
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          no-cache: true
+          must-revalidate: true
+  ai:
+    openai:
+      # LM Studio ignora a chave, mas o starter exige string não-vazia.
+      api-key: ${ACERVO_AI_API_KEY:lm-studio}
+      # LM Studio expõe /v1/chat/completions e /v1/embeddings.
+      # O Spring AI OpenAiApi já anexa /v1 ao caminho — não inclua aqui
+      # ou vai bater em /v1/v1/embeddings.
+      base-url: ${ACERVO_AI_BASE_URL:http://localhost:1234}
+      chat:
+        options:
+          # Gemma 2 9B (somente texto — sem visão). Trocado do gemma-3-4b-it
+          # multimodal por causa do custo de inferência no hardware local.
+          # Atenção: anexo de imagem no chat não funciona com este modelo.
+          model: ${ACERVO_CHAT_MODEL:gemma-2-9b-it}
+          temperature: 0.2
+      embedding:
+        options:
+          model: ${ACERVO_EMBEDDING_MODEL:text-embedding-nomic-embed-text-v1.5@q8_0}
+    vectorstore:
+      pgvector:
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+        dimensions: 768
+
+acervo:
+  embedding:
+    model: ${ACERVO_EMBEDDING_MODEL:text-embedding-nomic-embed-text-v1.5@q8_0}
+    dimensions: 768
+
+logging:
+  level:
+    com.acervo: INFO
+    org.springframework.ai: INFO
+    org.springframework.ai.autoconfigure.retry: ERROR

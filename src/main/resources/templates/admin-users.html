@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Usuários — Acervo</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/acervo.css(v=36)}"/>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+<div class="app">
+    <aside th:replace="~{fragments/sidebar :: sidebar}"></aside>
+    <main class="main" id="main-content" role="main">
+        <header class="chat-header" role="banner">
+            <h1 class="profile-heading">Usuários</h1>
+            <span class="meta" th:text="|${#lists.size(users)} contas|">0 contas</span>
+            <div class="spacer"></div>
+            <div th:replace="~{fragments/user-menu :: userMenu}"></div>
+        </header>
+
+        <section class="users-body">
+            <div class="users-hero">
+                <div class="users-hero-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none"
+                         stroke="currentColor" stroke-width="1.5"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="9" cy="8" r="3.5"/>
+                        <path d="M2 20c.6-3.2 3.3-5.5 7-5.5s6.4 2.3 7 5.5"/>
+                        <circle cx="17" cy="6" r="2.5"/>
+                        <path d="M21 14c-.6-2-2-3.5-4-3.5"/>
+                    </svg>
+                </div>
+                <div class="users-hero-info">
+                    <span class="study-page-eyebrow">ADMIN</span>
+                    <h2 class="study-page-title">
+                        Gerencie quem tem <em>acesso</em>.
+                    </h2>
+                    <p class="study-page-sub">
+                        Crie contas, redefina senhas, ative ou desative o login.
+                        Cada usuário tem seu próprio acervo isolado dos demais.
+                    </p>
+                </div>
+            </div>
+
+            <div th:if="${saved == 'created'}" class="profile-saved" role="status">Usuário criado.</div>
+            <div th:if="${saved == 'updated'}" class="profile-saved" role="status">Usuário atualizado.</div>
+            <div th:if="${saved == 'activated'}" class="profile-saved" role="status">Login ativado.</div>
+            <div th:if="${saved == 'deactivated'}" class="profile-saved" role="status">Login desativado.</div>
+            <div th:if="${saved == 'deleted'}" class="profile-saved" role="status">Usuário removido.</div>
+            <div th:if="${saved == 'reset'}" class="profile-saved" role="status">
+                Senha redefinida para <strong th:text="${tempEmail}">email</strong>.
+                Nova senha temporária:
+                <code th:text="${tempPassword}" class="users-temp-pw">…</code>
+                — copie e envie para o usuário.
+            </div>
+            <div th:if="${error == 'email'}" class="profile-error" role="alert">Esse email já está cadastrado.</div>
+            <div th:if="${error == 'invalid'}" class="profile-error" role="alert">Email inválido ou senha com menos de 6 caracteres.</div>
+            <div th:if="${error == 'self'}" class="profile-error" role="alert">Você não pode fazer isso na sua própria conta.</div>
+
+            <section class="users-list-section">
+                <div class="users-list-head">
+                    <h2 class="profile-section-title">Contas existentes</h2>
+                    <button type="button" class="btn-primary" id="open-create-user"
+                            onclick="document.getElementById('create-user-modal').hidden=false;document.getElementById('create-user-modal').setAttribute('aria-hidden','false');document.getElementById('new-email').focus();">
+                        Cadastrar usuário
+                    </button>
+                </div>
+                <ul class="users-list">
+                    <li th:each="u : ${users}" class="users-item">
+                        <details class="users-row">
+                            <summary class="users-summary">
+                                <div class="users-avatar" th:text="${u.initials()}">A</div>
+                                <div class="users-id">
+                                    <div class="users-name" th:text="${u.fullName()}">Nome</div>
+                                    <div class="users-email" th:text="${u.email}">email</div>
+                                </div>
+                                <span class="users-role" th:text="${u.role}">ROLE</span>
+                                <span class="users-status"
+                                      th:classappend="${u.active} ? ' users-status-on' : ' users-status-off'"
+                                      th:text="${u.active} ? 'ativo' : 'desativado'">ativo</span>
+                                <span class="chevron" aria-hidden="true">▾</span>
+                            </summary>
+                            <div class="users-actions">
+                                <form th:action="@{|/admin/users/${u.id}/toggle|}" method="post">
+                                    <button class="btn-outline" type="submit"
+                                            th:text="${u.active} ? 'Desativar login' : 'Ativar login'">Desativar login</button>
+                                </form>
+                                <form th:action="@{|/admin/users/${u.id}/reset-password|}" method="post"
+                                      onsubmit="return confirm('Resetar a senha deste usuário? Uma senha temporária será mostrada na tela.');">
+                                    <button class="btn-outline" type="submit">Resetar senha</button>
+                                </form>
+                                <form th:action="@{|/admin/users/${u.id}/delete|}" method="post"
+                                      onsubmit="return confirm('Apagar este usuário? Todas as matérias e documentos dele também serão removidos.');">
+                                    <button class="btn-outline users-btn-danger" type="submit">Apagar</button>
+                                </form>
+                            </div>
+                            <form th:action="@{|/admin/users/${u.id}/update|}" method="post" class="users-edit-form">
+                                <div class="profile-field">
+                                    <label>Nome</label>
+                                    <input name="firstName" type="text" maxlength="80" th:value="${u.firstName}"/>
+                                </div>
+                                <div class="profile-field">
+                                    <label>Sobrenome</label>
+                                    <input name="lastName" type="text" maxlength="80" th:value="${u.lastName}"/>
+                                </div>
+                                <div class="profile-field">
+                                    <label>Contato</label>
+                                    <input name="contact" type="text" maxlength="160" th:value="${u.contact}"/>
+                                </div>
+                                <div class="profile-field">
+                                    <label>Perfil</label>
+                                    <select name="role">
+                                        <option th:each="r : ${roles}"
+                                                th:value="${r}"
+                                                th:text="${r}"
+                                                th:selected="${r == u.role}">ROLE</option>
+                                    </select>
+                                </div>
+                                <div class="profile-actions">
+                                    <button class="btn-primary" type="submit">Salvar alterações</button>
+                                </div>
+                            </form>
+                        </details>
+                    </li>
+                </ul>
+            </section>
+
+            <div id="create-user-modal" class="modal-backdrop" hidden aria-hidden="true"
+                 onclick="if(event.target===this){this.hidden=true;this.setAttribute('aria-hidden','true');}">
+                <div class="modal users-create-modal" role="dialog" aria-modal="true"
+                     aria-labelledby="create-user-title">
+                    <h3 id="create-user-title" class="modal-title">Cadastrar usuário</h3>
+                    <p class="modal-message">
+                        Defina email, senha inicial e perfil. O usuário poderá trocar a senha
+                        em Conta › Segurança.
+                    </p>
+                    <form th:action="@{/admin/users/create}" method="post" class="users-create-form">
+                        <div class="profile-field">
+                            <label for="new-email">Email</label>
+                            <input id="new-email" name="email" type="email" required autocomplete="off"/>
+                        </div>
+                        <div class="profile-field">
+                            <label for="new-password">Senha inicial</label>
+                            <input id="new-password" name="password" type="text" minlength="6" required autocomplete="off"/>
+                        </div>
+                        <div class="profile-field">
+                            <label for="new-first">Nome</label>
+                            <input id="new-first" name="firstName" type="text" maxlength="80"/>
+                        </div>
+                        <div class="profile-field">
+                            <label for="new-last">Sobrenome</label>
+                            <input id="new-last" name="lastName" type="text" maxlength="80"/>
+                        </div>
+                        <div class="profile-field">
+                            <label for="new-role">Perfil</label>
+                            <select id="new-role" name="role">
+                                <option th:each="r : ${roles}" th:value="${r}" th:text="${r}">ROLE</option>
+                            </select>
+                        </div>
+                        <div class="modal-actions users-create-actions">
+                            <button type="button" class="btn-outline"
+                                    onclick="var m=document.getElementById('create-user-modal');m.hidden=true;m.setAttribute('aria-hidden','true');">
+                                Cancelar
+                            </button>
+                            <button class="btn-primary" type="submit">Criar usuário</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <script th:if="${error == 'email' or error == 'invalid'}">
+                (function(){
+                    var m=document.getElementById('create-user-modal');
+                    if(m){m.hidden=false;m.setAttribute('aria-hidden','false');}
+                })();
+            </script>
+        </section>
+    </main>
+</div>
+<script th:src="@{/js/acervo.js(v=36)}" defer></script>
+</body>
+</html>

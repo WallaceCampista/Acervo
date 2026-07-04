@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Acervo — Início</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/acervo.css(v=36)}"/>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+<div class="app">
+    <aside th:replace="~{fragments/sidebar :: sidebar}"></aside>
+    <main class="main" id="main-content" role="main">
+        <header class="chat-header" role="banner">
+            <h1 class="profile-heading">Início</h1>
+            <div class="spacer"></div>
+            <div th:replace="~{fragments/user-menu :: userMenu}"></div>
+        </header>
+
+        <section class="inicio-body"
+                 th:with="hour=${T(java.time.LocalTime).now().hour},
+                          greet=${hour < 5 ? 'Boa madrugada' : (hour < 12 ? 'Bom dia' : (hour < 18 ? 'Boa tarde' : 'Boa noite'))},
+                          firstName=${#strings.isEmpty(profile.firstName) ? 'estudante' : profile.firstName}">
+
+            <div class="inicio-shell" aria-hidden="true">
+                <div class="inicio-shell-glow"></div>
+            </div>
+
+            <section class="inicio-hero">
+                <p class="inicio-eyebrow"
+                   th:text="|${greet} · acervo pessoal|">BEM-VINDO DE VOLTA</p>
+                <h2 class="inicio-greeting">
+                    Olá, <em th:text="${firstName} + '.'">estudante.</em>
+                </h2>
+                <p class="inicio-lede">
+                    Aqui você transforma suas matérias em um espaço onde fazer
+                    perguntas é tão simples quanto conversar — e cada resposta
+                    vem direto dos seus próprios materiais.
+                </p>
+            </section>
+
+            <section class="inicio-stats" th:if="${subjectCount > 0}" aria-label="Resumo da sua conta">
+                <div class="inicio-stat">
+                    <div class="inicio-stat-mark" aria-hidden="true">◆</div>
+                    <div class="inicio-stat-body">
+                        <span class="inicio-stat-num" th:text="${subjectCount}">0</span>
+                        <span class="inicio-stat-label">matérias</span>
+                    </div>
+                </div>
+                <div class="inicio-stat">
+                    <div class="inicio-stat-mark" aria-hidden="true">▤</div>
+                    <div class="inicio-stat-body">
+                        <span class="inicio-stat-num" th:text="${documentCount}">0</span>
+                        <span class="inicio-stat-label">documentos</span>
+                    </div>
+                </div>
+                <div class="inicio-stat">
+                    <div class="inicio-stat-mark" aria-hidden="true">❝</div>
+                    <div class="inicio-stat-body">
+                        <span class="inicio-stat-num" th:text="${conversationCount}">0</span>
+                        <span class="inicio-stat-label">conversas</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="inicio-cta-grid" aria-label="Ações rápidas">
+                <a th:href="${subjectCount == 0 ? '/import' : '/chat'}"
+                   class="inicio-cta inicio-cta-primary">
+                    <div class="inicio-cta-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+                             stroke="currentColor" stroke-width="1.6"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 11.5c0 4.142-4.03 7.5-9 7.5-1.34 0-2.61-.245-3.75-.683L3 20l1.357-4.07A7.05 7.05 0 0 1 3 11.5C3 7.358 7.03 4 12 4s9 3.358 9 7.5Z"/>
+                        </svg>
+                    </div>
+                    <div class="inicio-cta-body">
+                        <p class="inicio-cta-eyebrow">PRINCIPAL</p>
+                        <h3 th:text="${subjectCount == 0} ? 'Importe seu primeiro material' : 'Comece uma conversa'">Comece uma conversa</h3>
+                        <p th:text="${subjectCount == 0}
+                                    ? 'Crie uma matéria e envie um PDF pra começar.'
+                                    : 'Escolha uma matéria e pergunte o que quiser. Cada resposta vem com a citação que a sustenta.'">
+                            Escolha uma matéria e pergunte.
+                        </p>
+                    </div>
+                    <span class="inicio-cta-arrow" aria-hidden="true">→</span>
+                </a>
+
+                <a th:href="@{/import}" class="inicio-cta">
+                    <div class="inicio-cta-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                             stroke="currentColor" stroke-width="1.6"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 3v4a1 1 0 0 0 1 1h4"/>
+                            <path d="M5 8a3 3 0 0 1 3-3h6l5 5v9a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V8Z"/>
+                            <path d="M12 11v6"/><path d="M9.5 13.5 12 11l2.5 2.5"/>
+                        </svg>
+                    </div>
+                    <div class="inicio-cta-body">
+                        <h3>Importar materiais</h3>
+                        <p>PDFs, slides e textos por matéria.</p>
+                    </div>
+                    <span class="inicio-cta-arrow" aria-hidden="true">→</span>
+                </a>
+
+                <a th:href="@{/profile}" class="inicio-cta">
+                    <div class="inicio-cta-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                             stroke="currentColor" stroke-width="1.6"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="8" r="3.5"/>
+                            <path d="M5 20c.6-3.2 3.5-5.5 7-5.5s6.4 2.3 7 5.5"/>
+                        </svg>
+                    </div>
+                    <div class="inicio-cta-body">
+                        <h3>Conta &amp; perfil</h3>
+                        <p>Email, senha e compartilhamentos.</p>
+                    </div>
+                    <span class="inicio-cta-arrow" aria-hidden="true">→</span>
+                </a>
+            </section>
+
+            <section class="inicio-subjects-section" th:if="${subjectCount > 0}"
+                     aria-labelledby="inicio-subjects-title">
+                <div class="inicio-section-head">
+                    <h3 id="inicio-subjects-title" class="inicio-section-title">Suas matérias</h3>
+                    <a class="inicio-section-link" th:href="@{/import}">Gerenciar →</a>
+                </div>
+                <div class="inicio-subject-grid">
+                    <a th:each="s : ${subjects}"
+                       th:href="@{|/chat?subject=${s.id}|}"
+                       class="inicio-subject-tile">
+                        <span class="inicio-subject-dot" th:style="'background:' + ${s.color}" aria-hidden="true"></span>
+                        <div class="inicio-subject-info">
+                            <h4 th:text="${s.name}">Matéria</h4>
+                            <p th:text="|${#lists.size(s.documents)} ${#lists.size(s.documents) == 1 ? 'documento' : 'documentos'}|">0 documentos</p>
+                        </div>
+                        <span class="inicio-subject-arrow" aria-hidden="true">→</span>
+                    </a>
+                </div>
+            </section>
+
+            <section class="inicio-review-block" th:if="${subjectCount > 0}"
+                     aria-labelledby="inicio-review-title">
+                <div class="inicio-section-head">
+                    <h3 id="inicio-review-title" class="inicio-section-title">
+                        <span class="inicio-section-eyebrow">PRA REVISAR</span>
+                        Onde retomar agora
+                    </h3>
+                    <span class="inicio-review-due-total"
+                          th:if="${totalDueCards > 0}"
+                          th:text="|${totalDueCards} cards pendentes|">0 cards</span>
+                </div>
+                <div th:if="${totalDueCards == 0}" class="inicio-review-empty">
+                    Nenhum flashcard pendente. Bom trabalho!
+                </div>
+                <ul class="inicio-review-list">
+                    <th:block th:each="s : ${subjects}">
+                        <li class="inicio-review-row"
+                            th:if="${(dueBySubject.get(s.id) > 0) or (#lists.size(topicsBySubject.get(s.id)) > 0)}">
+                            <div class="grow">
+                                <div class="inicio-review-subject">
+                                    <span class="dot" th:style="'background:' + ${s.color}" aria-hidden="true"></span>
+                                    <span th:text="${s.name}">matéria</span>
+                                    <span class="inicio-review-due"
+                                          th:if="${dueBySubject.get(s.id) > 0}"
+                                          th:text="|${dueBySubject.get(s.id)} cards|">0 cards</span>
+                                </div>
+                                <div class="inicio-review-topics"
+                                     th:if="${#lists.size(topicsBySubject.get(s.id)) > 0}">
+                                    <span class="topic-chip"
+                                          th:each="t : ${topicsBySubject.get(s.id)}"
+                                          th:text="${t.term}">termo</span>
+                                </div>
+                            </div>
+                            <div class="inicio-review-actions">
+                                <a class="btn-outline" th:href="@{|/subjects/${s.id}/flashcards|}">Flashcards</a>
+                                <a class="btn-outline" th:href="@{|/subjects/${s.id}/quiz|}">Quiz</a>
+                                <a class="btn-outline" th:href="@{|/subjects/${s.id}/study|}">Estudo</a>
+                            </div>
+                        </li>
+                    </th:block>
+                </ul>
+            </section>
+
+            <section class="inicio-tips" aria-labelledby="inicio-tips-title">
+                <h3 id="inicio-tips-title" class="inicio-tips-title">
+                    <span class="inicio-tips-glyph" aria-hidden="true">i</span>
+                    Como tirar o melhor proveito
+                </h3>
+                <ul class="inicio-tips-list">
+                    <li>
+                        <strong>Faça perguntas específicas.</strong>
+                        “O que diz o slide 14 sobre rasterização?” funciona melhor
+                        que “fala de computação gráfica”.
+                    </li>
+                    <li>
+                        <strong>Confira as fontes.</strong>
+                        O painel lateral mostra de onde cada resposta veio — útil
+                        pra revisar antes da prova.
+                    </li>
+                    <li>
+                        <strong>Separe por matéria.</strong>
+                        Quanto mais focada a matéria, mais precisa fica a resposta.
+                    </li>
+                </ul>
+            </section>
+        </section>
+    </main>
+</div>
+<script th:src="@{/js/acervo.js(v=36)}" defer></script>
+</body>
+</html>

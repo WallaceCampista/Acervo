@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="|${subject.name} — Tópicos|">Tópicos</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/acervo.css(v=36)}"/>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+<div class="app">
+    <aside th:replace="~{fragments/sidebar :: sidebar}"></aside>
+    <main class="main" id="main-content" role="main">
+        <header class="chat-header" role="banner">
+            <h1 class="profile-heading">Mapa de tópicos</h1>
+            <div class="spacer"></div>
+            <form th:action="@{|/subjects/${subject.id}/topics/regenerate|}" method="post"
+                  data-loading="Gerando o mapa de tópicos…">
+                <button class="btn-outline" type="submit">↻ Regenerar</button>
+            </form>
+            <a class="btn-outline" th:href="@{|/chat?subject=${subject.id}|}">← Voltar</a>
+            <div th:replace="~{fragments/user-menu :: userMenu}"></div>
+        </header>
+
+        <section class="topics-body">
+            <div class="study-page-head">
+                <span class="dot-big study-page-dot" th:style="'background:' + ${subject.color}" aria-hidden="true"></span>
+                <div class="study-page-head-info">
+                    <span class="study-page-eyebrow">MAPA HIERÁRQUICO</span>
+                    <h2 class="study-page-title">
+                        <em>Tópicos</em> de <span th:text="${subject.name}">matéria</span>
+                    </h2>
+                    <p class="study-page-sub">
+                        Visão estruturada do conteúdo extraído dos seus documentos —
+                        útil pra navegar pelas ideias principais antes de mergulhar.
+                    </p>
+                </div>
+            </div>
+
+            <div th:if="${topicMapError}" class="profile-error" th:text="${topicMapError}">erro</div>
+
+            <div th:if="${topicMap == null and topicMapError == null}" class="study-empty">
+                <div class="study-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none"
+                         stroke="currentColor" stroke-width="1.4"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="5" r="2"/>
+                        <circle cx="6" cy="14" r="2"/>
+                        <circle cx="18" cy="14" r="2"/>
+                        <circle cx="12" cy="20" r="2"/>
+                        <path d="M12 7v3M10.5 11.5 7.5 13M13.5 11.5 16.5 13M12 17v1"/>
+                    </svg>
+                </div>
+                <h3>Mapa ainda não gerado</h3>
+                <p>Clique em <strong>↻ Regenerar</strong> no topo pra construir o mapa
+                   a partir do conteúdo da matéria.</p>
+            </div>
+
+            <pre class="topic-tree" th:if="${topicMap}" th:text="${topicMap}">…</pre>
+        </section>
+    </main>
+</div>
+<script th:src="@{/js/acervo.js(v=36)}" defer></script>
+</body>
+</html>

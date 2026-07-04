@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<aside th:fragment="sidebar" class="sidebar" role="navigation" aria-label="Navegação principal">
+    <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><span>A</span></div>
+        <div class="brand-text">
+            <span class="brand-title" th:text="#{app.name}">Acervo</span>
+            <span class="brand-sub" th:text="#{app.tagline}">estudo aumentado</span>
+        </div>
+    </div>
+
+    <div class="nav-label" id="nav-label" th:text="#{nav.subjects} ?: 'Navegação'">Navegação</div>
+    <a th:href="@{/inicio}" class="nav-item" th:classappend="${nav == 'inicio'} ? ' active' : ''"
+       th:aria-current="${nav == 'inicio'} ? 'page' : null">
+        <span class="ico" aria-hidden="true">⌂</span> <span th:text="#{nav.home}">Início</span>
+    </a>
+    <a th:href="@{/chat}" class="nav-item" th:classappend="${nav == 'chat'} ? ' active' : ''"
+       th:aria-current="${nav == 'chat'} ? 'page' : null">
+        <span class="ico" aria-hidden="true">💬</span> <span th:text="#{nav.chat}">Chat</span>
+    </a>
+    <a th:href="@{/import}" class="nav-item" th:classappend="${nav == 'import'} ? ' active' : ''"
+       th:aria-current="${nav == 'import'} ? 'page' : null">
+        <span class="ico" aria-hidden="true">⬆</span> <span th:text="#{nav.import}">Importação</span>
+    </a>
+    <a th:href="@{/resumo}" class="nav-item" th:classappend="${nav == 'resumo'} ? ' active' : ''"
+       th:aria-current="${nav == 'resumo'} ? 'page' : null">
+        <span class="ico" aria-hidden="true">✎</span> <span>Resumo</span>
+    </a>
+    <a th:if="${isAdmin}" th:href="@{/admin/users}" class="nav-item"
+       th:classappend="${nav == 'users'} ? ' active' : ''"
+       th:aria-current="${nav == 'users'} ? 'page' : null">
+        <span class="ico" aria-hidden="true">♟</span> <span>Usuários</span>
+    </a>
+
+    <div class="nav-label" id="subjects-label" th:text="#{nav.subjects}">Matérias</div>
+    <div class="subjects" role="list" aria-labelledby="subjects-label"
+         th:with="basePath=${nav == 'import' ? '/import' : '/chat'}">
+        <a th:each="s : ${subjects}"
+           th:href="@{|${basePath}?subject=${s.id}|}"
+           class="subject-item"
+           role="listitem"
+           th:classappend="${selected != null and selected.id == s.id} ? ' active' : ''"
+           th:aria-current="${selected != null and selected.id == s.id} ? 'true' : null"
+           th:aria-label="${s.name} + ' (' + ${#lists.size(s.documents)} + ' documentos)'">
+            <span class="dot" th:style="'background:' + ${s.color}" aria-hidden="true"></span>
+            <span class="name" th:text="${s.name}">Matéria</span>
+            <span class="count" th:text="${#lists.size(s.documents)}" aria-hidden="true">0</span>
+        </a>
+    </div>
+
+    <!-- Ações de estudo da matéria selecionada (atalhos pra Flashcards / Quiz /
+         Estudo dirigido / Tópicos). Aparecem só quando há matéria escolhida. -->
+    <div class="nav-label" id="study-tools-label"
+         th:if="${selected != null}">FERRAMENTAS</div>
+    <div class="study-tools" th:if="${selected != null}">
+        <a th:href="@{|/subjects/${selected.id}/flashcards|}" class="study-tool-item"
+           th:classappend="${tool == 'flashcards'} ? ' active' : ''"
+           th:aria-current="${tool == 'flashcards'} ? 'page' : null"
+           title="Flashcards (revisão espaçada)">🃏 <span>Flashcards</span></a>
+        <a th:href="@{|/subjects/${selected.id}/quiz|}" class="study-tool-item"
+           th:classappend="${tool == 'quiz'} ? ' active' : ''"
+           th:aria-current="${tool == 'quiz'} ? 'page' : null"
+           title="Quiz com múltipla escolha">📝 <span>Quiz</span></a>
+        <a th:href="@{|/subjects/${selected.id}/study|}" class="study-tool-item"
+           th:classappend="${tool == 'study'} ? ' active' : ''"
+           th:aria-current="${tool == 'study'} ? 'page' : null"
+           title="Tutor socrático que pergunta">🎓 <span>Estudo dirigido</span></a>
+        <a th:href="@{|/subjects/${selected.id}/topics|}" class="study-tool-item"
+           th:classappend="${tool == 'topics'} ? ' active' : ''"
+           th:aria-current="${tool == 'topics'} ? 'page' : null"
+           data-loading="Montando o mapa de tópicos…"
+           title="Mapa de tópicos">🗺 <span>Tópicos</span></a>
+    </div>
+
+    <a class="profile" th:href="@{/profile}"
+       th:aria-label="'Editar perfil de ' + ${profile.fullName()}">
+        <div class="avatar" aria-hidden="true" th:text="${profile.initials()}">A</div>
+        <div class="who">
+            <span class="who-name" th:text="${profile.fullName()}">Usuário</span>
+            <span class="who-plan"
+                  th:text="${not #strings.isEmpty(profile.contact)} ? ${profile.contact} : 'Toque para editar'">
+                Toque para editar
+            </span>
+        </div>
+    </a>
+</aside>
+</body>
+</html>

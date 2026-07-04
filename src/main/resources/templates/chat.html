@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Acervo — Chat</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/acervo.css(v=36)}"/>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+<div class="app">
+    <aside th:replace="~{fragments/sidebar :: sidebar}"></aside>
+    <main class="main" id="main-content" role="main">
+        <header class="chat-header" role="banner">
+            <details class="subject-dropdown" th:if="${selected}">
+                <summary class="subject-chip"
+                         th:aria-label="'Trocar matéria. Atual: ' + ${selected.name}">
+                    <span class="dot" th:style="'background:' + ${selected.color}" aria-hidden="true"></span>
+                    <span class="label" th:text="#{chat.header.subjectLabel}">MATÉRIA</span>
+                    <strong th:text="${selected.name}">Matéria</strong>
+                    <span class="chevron" aria-hidden="true">▾</span>
+                </summary>
+                <div class="dropdown-menu" role="listbox" th:aria-label="#{nav.subjects}">
+                    <a th:each="s : ${subjects}"
+                       th:href="@{|/chat?subject=${s.id}|}"
+                       role="option"
+                       class="dropdown-item"
+                       th:classappend="${selected.id == s.id} ? ' active' : ''"
+                       th:aria-selected="${selected.id == s.id}">
+                        <span class="dot" th:style="'background:' + ${s.color}" aria-hidden="true"></span>
+                        <span class="name" th:text="${s.name}">Matéria</span>
+                        <span class="count"
+                              th:text="${#lists.size(s.documents)} + ' docs'"
+                              aria-hidden="true">0 docs</span>
+                    </a>
+                </div>
+            </details>
+            <div class="spacer"></div>
+            <div class="header-actions">
+                <a th:if="${active}"
+                   th:href="@{|/chat/conversations/${active.id}/export?format=md|}"
+                   class="icon-btn-ghost" title="Exportar conversa em Markdown"
+                   aria-label="Exportar conversa em Markdown">⤓</a>
+                <button type="button" class="icon-btn-ghost"
+                        onclick="AcervoFullscreen.toggle()"
+                        title="Tela cheia (F)" aria-label="Alternar tela cheia">⛶</button>
+                <button type="button" class="icon-btn-ghost"
+                        onclick="AcervoShortcuts.show()"
+                        title="Atalhos de teclado (?)" aria-label="Mostrar atalhos">?</button>
+            </div>
+            <form th:action="@{/chat/conversations}" method="post">
+                <input type="hidden" name="subjectId" th:value="${selected?.id}"/>
+                <button class="btn-primary" type="submit" th:text="#{chat.header.newConversation}">＋ Nova conversa</button>
+            </form>
+            <div th:replace="~{fragments/user-menu :: userMenu}"></div>
+        </header>
+
+        <div class="chat-body">
+            <section class="history" aria-labelledby="history-heading">
+                <div class="history-head">
+                    <div class="section-label" id="history-heading"
+                         th:text="#{chat.history.label} + ' — ' + (${selected?.name} ?: '')">HISTÓRICO</div>
+                    <input type="search" id="history-search" class="history-search"
+                           placeholder="Buscar no histórico…"
+                           th:if="${not #lists.isEmpty(conversations)}"
+                           aria-label="Buscar nas conversas por título ou conteúdo"
+                           oninput="AcervoHistorySearch.filter(this.value)"/>
+                </div>
+                <div th:if="${#lists.isEmpty(conversations)}" class="empty-history"
+                     th:text="#{chat.history.empty}">
+                    Nenhuma conversa ainda. Faça uma pergunta para começar.
+                </div>
+                <div id="history-empty-results" class="empty-history" hidden>
+                    Nenhuma conversa encontrada.
+                </div>
+                <a th:each="c : ${conversations}"
+                   th:href="@{/chat(subject=${selected.id},conv=${c.id})}"
+                   class="history-item"
+                   th:classappend="${active != null and active.id == c.id} ? ' active' : ''"
+                   th:attr="data-search=${c.title + ' ' + #strings.listJoin(c.messages.![content], ' ')}"
+                   th:aria-current="${active != null and active.id == c.id} ? 'true' : null">
+                    <div class="grow">
+                        <div class="t" th:text="${c.title}">Título</div>
+                        <div class="m" th:text="${#messages.msg('chat.history.messageCount', #lists.size(c.messages))}">0 mensagens</div>
+                    </div>
+                    <span class="history-last-tag"
+                          th:if="${active == null and lastVisitedConvId != null and lastVisitedConvId == c.id}"
+                          title="Última conversa visitada" aria-label="Última conversa visitada">●</span>
+                    <form th:action="@{'/chat/conversations/' + ${c.id} + '/delete'}" method="post"
+                          th:data-confirm-title="#{chat.history.deleteConfirm.title}"
+                          th:data-confirm="${#messages.msg('chat.history.deleteConfirm.message', c.title)}"
+                          th:data-confirm-label="#{chat.history.deleteConfirm.label}"
+                          onsubmit="return AcervoModal.confirmSubmit(event, this)">
+                        <input type="hidden" name="subjectId" th:value="${selected.id}"/>
+                        <button class="icon-btn" type="submit" th:aria-label="#{chat.history.delete}" title="Excluir">🗑</button>
+                    </form>
+                </a>
+            </section>
+
+            <section class="thread chat-welcome" th:if="${active == null}"
+                     aria-label="Tela inicial do chat">
+                <div class="chat-welcome-mark">
+                    <div class="dot-big" th:style="'background:' + ${selected.color}" aria-hidden="true"></div>
+                    <span class="chat-welcome-eyebrow">MATÉRIA ATIVA</span>
+                    <span class="chat-welcome-subject" th:text="${selected.name}">Matéria</span>
+                </div>
+                <h2 th:text="${'Pronto pra estudar ' + selected.name + '?'}">Pronto pra estudar?</h2>
+                <p>Comece uma nova conversa, ou escolha uma do histórico ao lado
+                   pra continuar de onde parou.</p>
+                <form th:action="@{/chat/conversations}" method="post">
+                    <input type="hidden" name="subjectId" th:value="${selected.id}"/>
+                    <button class="btn-primary" type="submit">＋ Nova conversa</button>
+                </form>
+            </section>
+
+            <section class="thread" th:if="${active}" aria-label="Conversa">
+                <div class="thread-scroll" role="log" aria-live="polite" aria-relevant="additions">
+                    <div th:if="${#lists.isEmpty(active.messages)}" class="empty-thread">
+                        <div class="dot-big" th:style="'background:' + ${selected.color}" aria-hidden="true"></div>
+                        <h2 th:text="${#messages.msg('chat.empty.title', selected.name)}">Pergunte sobre…</h2>
+                        <p th:text="#{chat.empty.subtitle}">As respostas são geradas a partir dos seus documentos indexados, com citações.</p>
+                        <div class="empty-thread-prompts" role="list" aria-label="Sugestões de pergunta">
+                            <button type="button" role="listitem" class="prompt-chip"
+                                    onclick="AcervoChat.fillPrompt(this)"
+                                    data-prompt="Resuma os pontos principais da matéria em até 5 tópicos.">
+                                <span class="prompt-chip-glyph" aria-hidden="true">∑</span>
+                                <span>Resumir pontos principais</span>
+                            </button>
+                            <button type="button" role="listitem" class="prompt-chip"
+                                    onclick="AcervoChat.fillPrompt(this)"
+                                    data-prompt="Crie 5 perguntas de prova com base nos documentos.">
+                                <span class="prompt-chip-glyph" aria-hidden="true">?</span>
+                                <span>Criar perguntas de prova</span>
+                            </button>
+                            <button type="button" role="listitem" class="prompt-chip"
+                                    onclick="AcervoChat.fillPrompt(this)"
+                                    data-prompt="Explique o conceito mais importante da matéria com exemplos.">
+                                <span class="prompt-chip-glyph" aria-hidden="true">◆</span>
+                                <span>Explicar conceito-chave</span>
+                            </button>
+                            <button type="button" role="listitem" class="prompt-chip"
+                                    onclick="AcervoChat.fillPrompt(this)"
+                                    data-prompt="Compare e contraste as ideias principais que aparecem nos materiais.">
+                                <span class="prompt-chip-glyph" aria-hidden="true">⇄</span>
+                                <span>Comparar ideias</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <article th:each="m : ${active.messages}"
+                             th:class="${m.role.name() == 'USER'} ? 'msg user' : 'msg assistant'"
+                             th:aria-label="${m.role.name() == 'USER'} ? 'Sua mensagem' : 'Resposta do Acervo'">
+                        <div class="assistant-side" th:if="${m.role.name() == 'ASSISTANT'}">
+                            <div class="avatar-a" aria-hidden="true">A</div>
+                            <button type="button" class="tts-toggle"
+                                    title="Silenciar leitura por voz"
+                                    aria-label="Silenciar leitura por voz"
+                                    aria-pressed="false"
+                                    onclick="AcervoTts.toggle()">
+                                <svg viewBox="0 0 24 24" width="14" height="14"
+                                     fill="none" stroke="currentColor" stroke-width="2"
+                                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                                    <path class="tts-wave" d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                                    <path class="tts-wave" d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                                    <line class="tts-mute-line" x1="3" y1="3" x2="21" y2="21"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="bubble">
+                            <a th:if="${m.imageMime != null}" class="msg-image-link"
+                               th:href="@{'/chat/messages/' + ${m.id} + '/image'}"
+                               target="_blank" rel="noopener">
+                                <img class="msg-image"
+                                     th:src="@{'/chat/messages/' + ${m.id} + '/image'}"
+                                     alt="Imagem anexada"/>
+                            </a>
+                            <div class="content" th:text="${m.content}">conteúdo</div>
+                        </div>
+                    </article>
+                </div>
+
+                <form class="composer" role="search"
+                      th:action="@{'/chat/conversations/' + ${active.id} + '/messages'}" method="post"
+                      enctype="multipart/form-data"
+                      onsubmit="return AcervoChat.send(event, this)"
+                      th:aria-label="${#messages.msg('chat.composer.placeholder', selected.name)}">
+                    <input type="hidden" name="subjectId" th:value="${selected.id}"/>
+                    <label class="visually-hidden" for="composer-question"
+                           th:text="${#messages.msg('chat.composer.placeholder', selected.name)}">Pergunte</label>
+                    <div class="composer-image-preview" hidden>
+                        <img alt="Pré-visualização da imagem anexada"/>
+                        <button type="button" class="composer-image-remove"
+                                onclick="AcervoChat.clearImage(this)"
+                                title="Remover imagem" aria-label="Remover imagem">✕</button>
+                    </div>
+                    <textarea id="composer-question" name="question" rows="1"
+                              th:placeholder="${#messages.msg('chat.composer.placeholder', selected.name)}"></textarea>
+                    <input type="file" name="image" accept="image/*" class="composer-file"
+                           hidden onchange="AcervoChat.previewImage(this)"/>
+                    <button type="button" class="attach"
+                            onclick="this.closest('.composer').querySelector('.composer-file').click()"
+                            title="Anexar imagem" aria-label="Anexar imagem">📎</button>
+                    <button type="button" class="mic"
+                            onclick="AcervoVoice.toggle(this)"
+                            title="Ditar (Web Speech API)" aria-label="Ditar pergunta">🎙</button>
+                    <button class="send" type="submit" th:aria-label="#{chat.composer.send}">➤</button>
+                </form>
+                <div class="composer-hint" th:text="#{chat.composer.hint}">Respostas baseadas nos seus documentos · podem conter imprecisões</div>
+            </section>
+
+            <aside class="panel" th:if="${active != null}"
+                   aria-labelledby="panel-title">
+                <div class="panel-head">
+                    <div class="panel-title" id="panel-title" th:text="#{chat.panel.title}">FONTES DA RESPOSTA</div>
+                </div>
+                <div th:if="${#lists.isEmpty(active.messages)}" class="panel-empty"
+                     th:text="#{chat.panel.empty}">
+                    As fontes consultadas aparecerão aqui após a resposta.
+                </div>
+                <!-- Agrupa as citações por interação: cabeçalho com a pergunta
+                     que originou cada bloco, depois a lista de fontes daquela
+                     resposta. Evita a confusão de ver todas as fontes
+                     concatenadas sem saber a qual pergunta cada uma pertence. -->
+                <th:block th:each="m, iter : ${active.messages}">
+                    <th:block th:if="${m.role.name() == 'ASSISTANT' and not #lists.isEmpty(m.citations)}">
+                        <div class="panel-question-group"
+                             th:if="${iter.index > 0 and active.messages[iter.index - 1].role.name() == 'USER'}">
+                            <div class="panel-question-label">PERGUNTA</div>
+                            <div class="panel-question-text"
+                                 th:text="${active.messages[iter.index - 1].content}">pergunta</div>
+                            <div class="panel-question-time" th:if="${m.responseTimeMs != null}"
+                                 th:text="${#messages.msg('chat.panel.time',
+                                          m.responseTimeMs >= 1000
+                                              ? #numbers.formatDecimal(m.responseTimeMs / 1000.0, 1, 1) + 's'
+                                              : m.responseTimeMs + 'ms')}">Respondido em 2.3s</div>
+                        </div>
+                        <button th:each="ct : ${m.citations}" class="panel-source" type="button"
+                                onclick="AcervoCitation.show(this)"
+                                th:attr="data-doc=${ct.chunk.document.originalName},
+                                         data-page=${ct.chunk.pageLabel} ?: '',
+                                         data-ext=${ct.chunk.document.extension},
+                                         data-relevance=${#numbers.formatInteger(ct.relevance*100,1)},
+                                         data-excerpt=${ct.chunk.content},
+                                         data-question=${active.messages[iter.index - 1].content}"
+                                th:aria-label="${ct.chunk.document.originalName} + ' — ' + ${#numbers.formatInteger(ct.relevance*100,1)} + '% de relevância. Clique para ver o trecho.'">
+                            <span class="badge"
+                                  th:classappend="' ext-' + ${ct.chunk.document.extension}"
+                                  th:text="${ct.chunk.document.extension}">PDF</span>
+                            <div class="grow">
+                                <div class="doc" th:text="${ct.chunk.document.originalName}">doc</div>
+                                <div class="bar" aria-hidden="true">
+                                    <div th:style="'width:' + ${#numbers.formatInteger(ct.relevance*100,1)} + '%'"></div>
+                                </div>
+                            </div>
+                            <span class="rel" th:text="${#numbers.formatInteger(ct.relevance*100,1)} + '%'" aria-hidden="true">0%</span>
+                        </button>
+                    </th:block>
+                </th:block>
+            </aside>
+        </div>
+    </main>
+</div>
+<div th:replace="~{fragments/modal :: confirm}"></div>
+
+<div id="shortcuts-modal" class="modal-backdrop" hidden aria-hidden="true">
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
+        <h3 id="shortcuts-title" class="modal-title">Atalhos de teclado</h3>
+        <dl class="shortcuts-list">
+            <dt><kbd>Ctrl</kbd>+<kbd>K</kbd></dt>
+            <dd>Trocar de matéria</dd>
+            <dt><kbd>Ctrl</kbd>+<kbd>/</kbd></dt>
+            <dd>Focar no campo de pergunta</dd>
+            <dt><kbd>Enter</kbd></dt>
+            <dd>Enviar pergunta</dd>
+            <dt><kbd>Shift</kbd>+<kbd>Enter</kbd></dt>
+            <dd>Quebrar linha sem enviar</dd>
+            <dt><kbd>↑</kbd> / <kbd>↓</kbd></dt>
+            <dd>Navegar entre conversas do histórico</dd>
+            <dt><kbd>F</kbd></dt>
+            <dd>Alternar modo tela cheia</dd>
+            <dt><kbd>Esc</kbd></dt>
+            <dd>Fechar modais e dropdowns</dd>
+            <dt><kbd>?</kbd></dt>
+            <dd>Mostrar esta lista</dd>
+        </dl>
+        <div class="modal-actions">
+            <button type="button" class="btn-outline" onclick="AcervoShortcuts.hide()">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<div id="citation-modal" class="modal-backdrop" hidden aria-hidden="true">
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="citation-modal-title">
+        <div class="citation-modal-head">
+            <span class="badge" id="citation-modal-badge">PDF</span>
+            <div class="grow">
+                <h3 id="citation-modal-title" class="modal-title citation-modal-doc">Documento</h3>
+                <div class="citation-modal-meta">
+                    <span id="citation-modal-page"></span>
+                    <span id="citation-modal-relevance"></span>
+                </div>
+            </div>
+        </div>
+        <div class="citation-modal-section">
+            <div class="citation-modal-label">PERGUNTA QUE ORIGINOU</div>
+            <div class="citation-modal-question" id="citation-modal-question"></div>
+        </div>
+        <div class="citation-modal-section">
+            <div class="citation-modal-label">TRECHO CITADO</div>
+            <div class="citation-modal-excerpt" id="citation-modal-excerpt"></div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn-outline" onclick="AcervoCitation.hide()">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/js/acervo.js(v=36)}" defer></script>
+</body>
+</html>

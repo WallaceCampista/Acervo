@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="|${subject.name} — Quiz|">Quiz</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/acervo.css(v=36)}"/>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+<div class="app">
+    <aside th:replace="~{fragments/sidebar :: sidebar}"></aside>
+    <main class="main" id="main-content" role="main">
+        <header class="chat-header" role="banner">
+            <h1 class="profile-heading">Quiz</h1>
+            <span class="meta" th:text="|${#lists.size(questions)} questões|">0 questões</span>
+            <div class="spacer"></div>
+            <form th:action="@{|/subjects/${subject.id}/quiz/generate|}" method="post" class="quiz-gen-form"
+                  data-loading="Gerando as questões do quiz…">
+                <select name="difficulty" aria-label="Dificuldade">
+                    <option value="EASY">Fácil</option>
+                    <option value="MEDIUM" selected>Médio</option>
+                    <option value="HARD">Difícil</option>
+                </select>
+                <input type="number" name="count" value="10" min="1" max="30" aria-label="Quantidade"/>
+                <button class="btn-primary" type="submit">＋ Gerar</button>
+            </form>
+            <a class="btn-outline" th:href="@{|/chat?subject=${subject.id}|}">← Voltar</a>
+            <div th:replace="~{fragments/user-menu :: userMenu}"></div>
+        </header>
+
+        <section class="quiz-body">
+            <div class="study-page-head">
+                <span class="dot-big study-page-dot" th:style="'background:' + ${subject.color}" aria-hidden="true"></span>
+                <div class="study-page-head-info">
+                    <span class="study-page-eyebrow">MÚLTIPLA ESCOLHA</span>
+                    <h2 class="study-page-title">
+                        <em>Quiz</em> de <span th:text="${subject.name}">matéria</span>
+                    </h2>
+                    <p class="study-page-sub">
+                        Questões geradas com base no seu material. Cada alternativa
+                        certa traz a citação que a sustenta.
+                    </p>
+                </div>
+            </div>
+
+            <div th:if="${#lists.isEmpty(questions)}" class="study-empty">
+                <div class="study-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none"
+                         stroke="currentColor" stroke-width="1.4"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9"/>
+                        <path d="M9.5 9.5a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 4"/>
+                        <line x1="12" y1="17" x2="12" y2="17.5"/>
+                    </svg>
+                </div>
+                <h3>Nenhuma questão ainda</h3>
+                <p>Configure dificuldade e quantidade no topo, depois clique em
+                   <strong>＋ Gerar</strong>.</p>
+            </div>
+
+            <ol class="quiz-list" th:if="${not #lists.isEmpty(questions)}">
+                <li th:each="q, iter : ${questions}" class="quiz-item"
+                    th:data-id="${q.id}">
+                    <div class="quiz-item-head">
+                        <span class="quiz-item-num"
+                              th:text="${T(java.lang.String).format('%02d', iter.index + 1)}">01</span>
+                        <div class="quiz-question" th:text="${q.question}">Pergunta</div>
+                    </div>
+                    <div class="quiz-options">
+                        <button th:each="opt, optIter : ${q.options()}"
+                                type="button" class="quiz-option"
+                                th:data-index="${optIter.index}"
+                                onclick="AcervoQuiz.select(this)">
+                            <span class="opt-letter" th:text="${T(java.lang.Character).toString(65 + optIter.index)}">A</span>
+                            <span class="opt-text" th:text="${opt}">opção</span>
+                        </button>
+                    </div>
+                    <div class="quiz-feedback" hidden></div>
+                </li>
+            </ol>
+        </section>
+    </main>
+</div>
+<script th:src="@{/js/acervo.js(v=36)}" defer></script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: acervo
+  profiles:
+    active: dev
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 300MB
+  thymeleaf:
+    cache: false
+  jpa:
+    # Mantido `true` para o Thymeleaf percorrer grafos lazy (subject.documents,
+    # message.citations → chunk → document) durante o render da view.
+    open-in-view: true
+    hibernate:
+      # `update` cria/altera tabelas baseado nas entidades JPA. Para colunas
+      # que JPA não consegue gerar (extensão `vector`, `content_tsv`
+      # GENERATED, índices GIN), ver SchemaBootstrap.
+      ddl-auto: update
+    properties:
+      hibernate.format_sql: true
+  ai:
+    vectorstore:
+      pgvector:
+        # Cria a tabela vector_store automaticamente — Spring AI gerencia.
+        initialize-schema: true
+
+acervo:
+  storage:
+    upload-dir: ${STORAGE_DIR:./data/uploads}
+  bootstrap:
+    # Usuário root criado na primeira inicialização (vide BootstrapDataInitializer).
+    # Em produção sobrescreva via ACERVO_BOOTSTRAP_ROOT_EMAIL/_PASSWORD.
+    root-email: ${ACERVO_BOOTSTRAP_ROOT_EMAIL:root@acervo.local}
+    root-password: ${ACERVO_BOOTSTRAP_ROOT_PASSWORD:}
+    # Se true, drop+recria todo o schema no boot (CUIDADO: apaga tudo).
+    # Use só pra zerar dados de demo. Em produção mantenha false.
+    reset-on-start: ${ACERVO_BOOTSTRAP_RESET:false}
+  rag:
+    top-k: 6
+    min-chunks: 3
+    max-context-tokens: 6000
+    chunk-size: 500
+    chunk-overlap: 80
+
+server:
+  port: 8080
+  error:
+    include-message: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        acervo.rag.answer: true
+        acervo.rag.answer_stream: true
+        acervo.embedding.process: true
+      percentiles:
+        acervo.rag.answer: 0.5, 0.95, 0.99
+        acervo.rag.answer_stream: 0.5, 0.95, 0.99
+        acervo.embedding.process: 0.5, 0.95, 0.99

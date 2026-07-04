@@ -1,0 +1,41 @@
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: create-drop  # cada execução de teste recria o schema
+  ai:
+    openai:
+      # Em testes não fala com LM Studio real. EmbeddingModel/ChatModel são
+      # mockados nos testes que precisam. Valores aqui só pra evitar erro de
+      # autoconfig do starter na subida do contexto.
+      api-key: test-key
+      base-url: http://localhost:65535
+      chat:
+        options:
+          model: test-chat-model
+      embedding:
+        options:
+          model: test-embedding-model
+    vectorstore:
+      pgvector:
+        initialize-schema: true
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+        dimensions: 768
+
+acervo:
+  storage:
+    upload-dir: ./target/test-uploads
+  embedding:
+    model: test-embedding-model
+    dimensions: 768
+  rag:
+    top-k: 3
+    chunk-size: 200
+    chunk-overlap: 40
+
+logging:
+  level:
+    com.acervo: WARN
+    org.springframework.ai: ERROR
+    org.testcontainers: WARN

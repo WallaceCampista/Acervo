@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Link inválido — Acervo</title>
+    <link rel="stylesheet" th:href="@{/css/acervo.css(v=36)}"/>
+</head>
+<body class="landing-body">
+<main class="shared-view" role="main">
+    <div class="error-card">
+        <div class="error-code">LINK INVÁLIDO</div>
+        <h2>Compartilhamento indisponível</h2>
+        <p th:text="${error}">erro</p>
+        <a class="btn-primary" th:href="@{/landing}">Voltar</a>
+    </div>
+</main>
+</body>
+</html>

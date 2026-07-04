@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="|${document.originalName} — Resumo|">Resumo</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/acervo.css(v=36)}"/>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+<div class="app">
+    <aside th:replace="~{fragments/sidebar :: sidebar}"></aside>
+    <main class="main" id="main-content" role="main">
+        <header class="chat-header" role="banner">
+            <h1 class="profile-heading" th:text="|Resumo · ${document.originalName}|">Resumo</h1>
+            <div class="spacer"></div>
+            <a class="btn-outline" th:href="@{|/import?subject=${document.subject.id}|}">← Voltar</a>
+            <div th:replace="~{fragments/user-menu :: userMenu}"></div>
+        </header>
+
+        <section class="summary-body">
+            <div class="summary-grid">
+                <article class="summary-card" data-level="PARAGRAFO">
+                    <header>
+                        <h2>1 parágrafo</h2>
+                        <button type="button" class="btn-outline"
+                                onclick="AcervoSummary.generate(this, 'PARAGRAFO')"
+                                th:data-doc-id="${document.id}">Gerar</button>
+                    </header>
+                    <div class="summary-content"
+                         th:data-content="${summaries.?[level.name() == 'PARAGRAFO'].size() > 0
+                                ? summaries.?[level.name() == 'PARAGRAFO'][0].content : ''}">
+                        <span th:if="${summaries.?[level.name() == 'PARAGRAFO'].size() == 0}"
+                              class="placeholder">Ainda não gerado — clique em "Gerar".</span>
+                        <span th:each="s : ${summaries}"
+                              th:if="${s.level.name() == 'PARAGRAFO'}"
+                              th:text="${s.content}"></span>
+                    </div>
+                </article>
+
+                <article class="summary-card" data-level="PAGINA">
+                    <header>
+                        <h2>1 página</h2>
+                        <button type="button" class="btn-outline"
+                                onclick="AcervoSummary.generate(this, 'PAGINA')"
+                                th:data-doc-id="${document.id}">Gerar</button>
+                    </header>
+                    <div class="summary-content">
+                        <span th:if="${summaries.?[level.name() == 'PAGINA'].size() == 0}"
+                              class="placeholder">Ainda não gerado — clique em "Gerar".</span>
+                        <span th:each="s : ${summaries}"
+                              th:if="${s.level.name() == 'PAGINA'}"
+                              th:text="${s.content}"></span>
+                    </div>
+                </article>
+
+                <article class="summary-card" data-level="MAPA_MENTAL">
+                    <header>
+                        <h2>Mapa mental</h2>
+                        <button type="button" class="btn-outline"
+                                onclick="AcervoSummary.generate(this, 'MAPA_MENTAL')"
+                                th:data-doc-id="${document.id}">Gerar</button>
+                    </header>
+                    <pre class="summary-content summary-mindmap">
+                        <span th:if="${summaries.?[level.name() == 'MAPA_MENTAL'].size() == 0}"
+                              class="placeholder">Ainda não gerado — clique em "Gerar".</span>
+                        <span th:each="s : ${summaries}"
+                              th:if="${s.level.name() == 'MAPA_MENTAL'}"
+                              th:text="${s.content}"></span>
+                    </pre>
+                </article>
+            </div>
+        </section>
+    </main>
+</div>
+<script th:src="@{/js/acervo.js(v=36)}" defer></script>
+</body>
+</html>

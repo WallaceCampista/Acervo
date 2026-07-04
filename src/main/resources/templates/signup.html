@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>Acervo — Criar conta</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" th:href="@{/css/acervo.css(v=36)}"/>
+</head>
+<body class="landing-body">
+<div class="landing-bg" aria-hidden="true"></div>
+<main class="landing landing-signup" role="main">
+    <header class="landing-mark">
+        <span class="landing-dot" aria-hidden="true"></span>
+        <span class="landing-brand">Acervo</span>
+        <a th:href="@{/landing}" class="landing-mark-tag landing-mark-back">← voltar</a>
+    </header>
+
+    <div class="landing-signup-grid">
+        <section class="landing-hero" aria-labelledby="signup-title">
+            <p class="landing-eyebrow">CRIAR CONTA</p>
+            <h1 id="signup-title" class="landing-title">
+                Um <em>acervo</em><br/>só seu.
+            </h1>
+            <p class="landing-lede">
+                Cadastre-se com email e senha. Cada conta tem suas próprias
+                matérias, documentos e conversas, isoladas das demais.
+            </p>
+
+            <ul class="landing-bullets">
+                <li><span class="bullet-dot" aria-hidden="true"></span>
+                    Seus dados ficam no seu PostgreSQL</li>
+                <li><span class="bullet-dot" aria-hidden="true"></span>
+                    Suba PDFs por matéria e converse com eles</li>
+                <li><span class="bullet-dot" aria-hidden="true"></span>
+                    Compartilhe leitura via link revogável</li>
+            </ul>
+        </section>
+
+        <aside class="landing-auth" aria-labelledby="signup-form-title">
+            <div class="landing-auth-card">
+                <div class="landing-auth-head">
+                    <h2 id="signup-form-title" class="landing-auth-title">Criar conta</h2>
+                    <p class="landing-auth-sub">Leva menos de um minuto</p>
+                </div>
+
+                <div th:if="${signupError}" class="auth-alert auth-alert-error"
+                     th:text="${signupError}">erro</div>
+
+                <form th:action="@{/signup}" method="post" class="auth-form" autocomplete="on">
+                    <div class="auth-row">
+                        <div class="auth-field">
+                            <label for="su-fn">Nome</label>
+                            <input id="su-fn" name="firstName" type="text"
+                                   th:value="${firstName}" autocomplete="given-name"
+                                   placeholder="Maria"/>
+                        </div>
+                        <div class="auth-field">
+                            <label for="su-ln">Sobrenome</label>
+                            <input id="su-ln" name="lastName" type="text"
+                                   th:value="${lastName}" autocomplete="family-name"
+                                   placeholder="Silva"/>
+                        </div>
+                    </div>
+                    <div class="auth-field">
+                        <label for="su-email">Email</label>
+                        <input id="su-email" name="email" type="email"
+                               th:value="${email}" autocomplete="email"
+                               placeholder="voce@dominio.com" required/>
+                    </div>
+                    <div class="auth-field">
+                        <label for="su-pw">Senha</label>
+                        <input id="su-pw" name="password" type="password"
+                               autocomplete="new-password" minlength="6"
+                               placeholder="mínimo 6 caracteres" required/>
+                    </div>
+                    <fieldset class="auth-roles">
+                        <legend>Perfil</legend>
+                        <label class="auth-role">
+                            <input type="radio" name="role" value="ALUNO" checked/>
+                            <span><strong>Aluno</strong> — eu vou estudar com o Acervo.</span>
+                        </label>
+                        <label class="auth-role">
+                            <input type="radio" name="role" value="PROFESSOR"/>
+                            <span><strong>Professor</strong> — vou criar matérias e compartilhar com alunos.</span>
+                        </label>
+                    </fieldset>
+
+                    <button class="btn-enter" type="submit">
+                        <span>Criar conta</span>
+                        <span aria-hidden="true">→</span>
+                    </button>
+                </form>
+
+                <p class="auth-secondary">
+                    Já tem conta?
+                    <a th:href="@{/landing}" class="auth-link">Entrar</a>
+                </p>
+            </div>
+        </aside>
+    </div>
+
+    <footer class="landing-foot">
+        <span class="landing-foot-mono">spring boot · thymeleaf · pgvector · lm studio</span>
+    </footer>
+</main>
+</body>
+</html>

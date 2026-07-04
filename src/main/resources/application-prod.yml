@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  thymeleaf:
+    cache: true
+  ai:
+    openai:
+      # Em produção, aponta pra um servidor OpenAI-compat acessível pela rede
+      # do container (Ollama, vLLM, llama.cpp server, LM Studio em host, etc).
+      api-key: ${ACERVO_AI_API_KEY:lm-studio}
+      base-url: ${ACERVO_AI_BASE_URL}
+      chat:
+        options:
+          model: ${ACERVO_CHAT_MODEL}
+      embedding:
+        options:
+          model: ${ACERVO_EMBEDDING_MODEL}
+    vectorstore:
+      pgvector:
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+        dimensions: ${ACERVO_EMBEDDING_DIMENSIONS:768}
+
+acervo:
+  embedding:
+    model: ${ACERVO_EMBEDDING_MODEL}
+    dimensions: ${ACERVO_EMBEDDING_DIMENSIONS:768}

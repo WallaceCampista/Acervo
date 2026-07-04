@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>Acervo — Estudo aumentado</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" th:href="@{/css/acervo.css(v=36)}"/>
+</head>
+<body class="landing-body">
+<div class="landing-bg" aria-hidden="true"></div>
+<main class="landing" role="main">
+    <header class="landing-mark">
+        <span class="landing-dot" aria-hidden="true"></span>
+        <span class="landing-brand">Acervo</span>
+        <span class="landing-mark-tag" aria-hidden="true">v.beta</span>
+    </header>
+
+    <div class="landing-grid">
+        <section class="landing-hero" aria-labelledby="landing-title">
+            <p class="landing-eyebrow">ESTUDO AUMENTADO · 100% LOCAL</p>
+            <h1 id="landing-title" class="landing-title">
+                Converse com os seus<br/>
+                <em>documentos</em> de estudo.
+            </h1>
+            <p class="landing-lede">
+                Importe PDFs, slides e textos por matéria. Pergunte em
+                linguagem natural e receba respostas com citações dos seus
+                próprios materiais — tudo localmente, sem enviar nada pra fora.
+            </p>
+
+            <ul class="landing-bullets">
+                <li><span class="bullet-dot" aria-hidden="true"></span>
+                    Cada matéria tem seu próprio acervo de fontes</li>
+                <li><span class="bullet-dot" aria-hidden="true"></span>
+                    Resposta sempre com a citação que a sustenta</li>
+                <li><span class="bullet-dot" aria-hidden="true"></span>
+                    LLM e embeddings rodando no seu LM Studio</li>
+            </ul>
+        </section>
+
+        <aside class="landing-auth" aria-labelledby="landing-auth-title">
+            <div class="landing-auth-card">
+                <div class="landing-auth-head">
+                    <h2 id="landing-auth-title" class="landing-auth-title">Entrar</h2>
+                    <p class="landing-auth-sub">Continue de onde parou</p>
+                </div>
+
+                <div th:if="${loginError}" class="auth-alert auth-alert-error"
+                     th:text="${loginError}">erro</div>
+                <div th:if="${info}" class="auth-alert auth-alert-info" th:text="${info}">info</div>
+
+                <form th:action="@{/login}" method="post" class="auth-form" autocomplete="on">
+                    <div class="auth-field">
+                        <label for="login-email">Email</label>
+                        <input id="login-email" name="email" type="email"
+                               autocomplete="email" placeholder="voce@dominio.com"
+                               required autofocus/>
+                    </div>
+                    <div class="auth-field">
+                        <label for="login-password">Senha</label>
+                        <input id="login-password" name="password" type="password"
+                               autocomplete="current-password" placeholder="••••••••" required/>
+                    </div>
+                    <button class="btn-enter" type="submit">
+                        <span>Entrar</span>
+                        <span aria-hidden="true">→</span>
+                    </button>
+                </form>
+
+                <div class="landing-auth-divider" aria-hidden="true">
+                    <span>ou</span>
+                </div>
+
+                <p class="auth-secondary">
+                    Ainda não tem conta?
+                    <a th:href="@{/signup}" class="auth-link">Cadastre-se agora</a>
+                </p>
+            </div>
+        </aside>
+
+        <section class="landing-features" aria-label="O que o Acervo faz">
+            <article class="landing-feature">
+                <div class="landing-feature-mark" aria-hidden="true">◆</div>
+                <h3>RAG por matéria</h3>
+                <p>Cada disciplina tem seu próprio índice vetorial — sem
+                   contaminação cruzada entre conteúdos.</p>
+            </article>
+            <article class="landing-feature">
+                <div class="landing-feature-mark" aria-hidden="true">❝</div>
+                <h3>Citações sempre</h3>
+                <p>Você vê o trecho exato e a página de onde veio cada parte
+                   da resposta. Auditável por padrão.</p>
+            </article>
+            <article class="landing-feature">
+                <div class="landing-feature-mark" aria-hidden="true">⊟</div>
+                <h3>100% local</h3>
+                <p>Embeddings e LLM rodam no LM Studio na sua máquina.
+                   Nenhum documento sai do seu computador.</p>
+            </article>
+        </section>
+    </div>
+
+    <footer class="landing-foot">
+        <span class="landing-foot-mono">spring boot · thymeleaf · pgvector · lm studio</span>
+    </footer>
+</main>
+</body>
+</html>

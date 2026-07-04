@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>Acervo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" th:href="@{/css/acervo.css(v=36)}"/>
+</head>
+<body>
+<div class="app">
+    <aside th:replace="~{fragments/sidebar :: sidebar}"></aside>
+    <main class="main empty-app">
+        <h2>Crie sua primeira matéria</h2>
+        <p>Vá em <a th:href="@{/import}" class="empty-link">Importação</a> para criar uma matéria e enviar documentos.</p>
+        <a th:href="@{/import}" class="btn-primary empty-cta">Ir para Importação</a>
+    </main>
+</div>
+</body>
+</html>

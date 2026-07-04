@@ -1,0 +1,16 @@
+target/
+.idea/
+.vscode/
+.git/
+.github/
+*.iml
+*.log
+data/
+.env
+.env.*
+!.env.example
+.DS_Store
+docker-compose*.yml
+Dockerfile
+README.md
+Melhorias.md

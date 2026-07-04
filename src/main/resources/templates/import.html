@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Acervo — Importação</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/acervo.css(v=36)}"/>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+<div class="app">
+    <aside th:replace="~{fragments/sidebar :: sidebar}"></aside>
+    <main class="main" id="main-content" role="main">
+        <header class="import-header" role="banner">
+            <h1 th:text="#{import.title}">Importação</h1>
+            <span class="meta" th:text="${#messages.msg('import.subjectsCount', #lists.size(subjects))}">0 matérias</span>
+            <div class="spacer"></div>
+            <div class="seg" role="group" th:aria-label="#{import.view.label}">
+                <span class="seg-label" aria-hidden="true" th:text="#{import.view.label}">VISTA</span>
+                <a th:href="@{/import(subject=${selected?.id},view='list')}"
+                   class="seg-btn" th:classappend="${view == 'list'} ? ' on' : ''"
+                   th:aria-pressed="${view == 'list'}"
+                   th:text="#{import.view.list}">Lista</a>
+                <a th:href="@{/import(subject=${selected?.id},view='gallery')}"
+                   class="seg-btn" th:classappend="${view == 'gallery'} ? ' on' : ''"
+                   th:aria-pressed="${view == 'gallery'}"
+                   th:text="#{import.view.gallery}">Galeria</a>
+            </div>
+            <div th:replace="~{fragments/user-menu :: userMenu}"></div>
+        </header>
+
+        <div class="import-body">
+            <section class="subjects-col" aria-labelledby="subjects-col-label">
+                <div class="subjects-col-head">
+                    <span class="subjects-col-eyebrow" id="subjects-col-label"
+                          th:text="#{import.subjects.label}">MATÉRIAS</span>
+                    <button class="subjects-col-add" type="button"
+                            aria-controls="new-subject" aria-expanded="false"
+                            onclick="const f=document.getElementById('new-subject');const o=f.classList.toggle('open');this.setAttribute('aria-expanded',o);if(o)f.querySelector('input').focus();"
+                            th:title="#{import.subjects.new}"
+                            aria-label="Criar nova matéria">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                             stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="12" y1="5" x2="12" y2="19"/>
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <form id="new-subject" class="new-subject" th:action="@{/subjects}" method="post"
+                      th:aria-label="#{import.subjects.label}">
+                    <label class="visually-hidden" for="new-subject-name" th:text="#{import.subjects.placeholder}">Nome da matéria</label>
+                    <input id="new-subject-name" name="name" th:placeholder="#{import.subjects.placeholder}" required/>
+                    <button class="btn-primary" type="submit" th:text="#{import.subjects.create}">Criar</button>
+                </form>
+
+                <div class="subject-list" role="list">
+                    <th:block th:each="s : ${subjects}">
+                        <a th:href="@{/import(subject=${s.id},view=${view})}"
+                           class="subject-row" role="listitem"
+                           th:classappend="${selected != null and selected.id == s.id} ? ' active' : ''"
+                           th:aria-current="${selected != null and selected.id == s.id} ? 'true' : null">
+                            <span class="dot" th:style="'background:' + ${s.color}" aria-hidden="true"></span>
+                            <div class="grow">
+                                <div class="t" th:text="${s.name}">nome</div>
+                                <div class="m" th:text="${#lists.size(s.documents)} + ' docs'">0 docs</div>
+                            </div>
+                            <button class="icon-btn edit" type="button"
+                                    th:data-subject-id="${s.id}"
+                                    onclick="AcervoSubjects.toggleRename(event,this)"
+                                    aria-expanded="false"
+                                    th:aria-controls="'rename-' + ${s.id}"
+                                    th:aria-label="${#messages.msg('import.subjects.rename')} + ': ' + ${s.name}"
+                                    th:title="#{import.subjects.rename}">✎</button>
+                            <form th:action="@{'/subjects/' + ${s.id} + '/delete'}" method="post"
+                                  th:data-confirm-title="#{import.subjects.deleteConfirm.title}"
+                                  th:data-confirm="${#messages.msg('import.subjects.deleteConfirm.message', s.name)}"
+                                  th:data-confirm-label="#{import.subjects.deleteConfirm.label}"
+                                  onsubmit="return AcervoModal.confirmSubmit(event, this)">
+                                <button class="icon-btn" type="submit"
+                                        th:aria-label="${#messages.msg('import.subjects.delete')} + ': ' + ${s.name}"
+                                        title="Excluir">🗑</button>
+                            </form>
+                        </a>
+                        <form th:id="'rename-' + ${s.id}" class="rename-subject"
+                              th:action="@{'/subjects/' + ${s.id} + '/rename'}" method="post"
+                              th:aria-label="${#messages.msg('import.subjects.rename')} + ': ' + ${s.name}">
+                            <label class="visually-hidden" th:for="'rename-input-' + ${s.id}"
+                                   th:text="#{import.subjects.rename.placeholder}">Novo nome</label>
+                            <input th:id="'rename-input-' + ${s.id}" name="name"
+                                   th:value="${s.name}" required maxlength="120"
+                                   th:placeholder="#{import.subjects.rename.placeholder}"/>
+                            <button class="btn-primary" type="submit"
+                                    th:text="#{import.subjects.rename.save}">Salvar</button>
+                            <button class="btn-outline" type="button"
+                                    th:data-subject-id="${s.id}"
+                                    onclick="AcervoSubjects.cancelRename(this)"
+                                    th:text="#{import.subjects.rename.cancel}">Cancelar</button>
+                        </form>
+                    </th:block>
+                </div>
+            </section>
+
+            <section class="docs-col" th:if="${selected}" aria-labelledby="docs-col-title">
+                <div class="docs-head">
+                    <span class="dot-big" th:style="'background:' + ${selected.color}" aria-hidden="true"></span>
+                    <div class="docs-head-info">
+                        <span class="docs-head-eyebrow">MATÉRIA</span>
+                        <h2 id="docs-col-title" th:text="${selected.name}">Matéria</h2>
+                        <p th:text="${#messages.msg('import.docs.count', docCount, chunkCount)}">0 documentos · 0 trechos indexados</p>
+                    </div>
+                    <form th:action="@{|/subjects/${selected.id}/share|}" method="post"
+                          class="share-form">
+                        <input type="hidden" name="label" th:value="${selected.name}"/>
+                        <button type="submit" class="btn-outline"
+                                title="Gerar link de compartilhamento (somente leitura)">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none"
+                                 stroke="currentColor" stroke-width="2"
+                                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/>
+                                <polyline points="16 6 12 2 8 6"/>
+                                <line x1="12" y1="2" x2="12" y2="15"/>
+                            </svg>
+                            <span>Compartilhar</span>
+                        </button>
+                    </form>
+                </div>
+
+                <form class="dropzone" enctype="multipart/form-data"
+                      th:action="@{'/import/' + ${selected.id} + '/upload'}" method="post"
+                      th:aria-label="#{import.dropzone.title}">
+                    <div class="dz-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+                             stroke="currentColor" stroke-width="1.6"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                    </div>
+                    <strong th:text="#{import.dropzone.title}">Arraste arquivos ou clique para enviar</strong>
+                    <p th:text="#{import.dropzone.hint}">PDF, DOCX, PPTX, TXT ou Markdown · até 50 MB</p>
+                    <label class="visually-hidden" for="upload-file" th:text="#{import.dropzone.title}">Arquivo</label>
+                    <input id="upload-file" type="file" name="files" multiple required onchange="this.form.submit()"
+                           accept=".pdf,.docx,.pptx,.txt,.md"/>
+                </form>
+
+                <div th:if="${totalDocs != null and totalDocs > 0}" class="ingest-progress"
+                     id="ingest-progress"
+                     th:classappend="${processingDocs > 0} ? ' active' : ''"
+                     th:data-subject-id="${selected.id}"
+                     role="status" aria-live="polite">
+                    <div class="ip-head">
+                        <span class="ip-spinner" aria-hidden="true"></span>
+                        <span class="ip-label" id="ip-label"
+                              th:text="${processingDocs != null and processingDocs > 0}
+                                ? 'Indexando… ' + ${indexedDocs} + ' de ' + ${totalDocs} + ' concluídos'
+                                : ((${failedDocs} != null and ${failedDocs} > 0)
+                                    ? 'Processados ' + ${indexedDocs} + ' de ' + ${totalDocs} + ' · ' + ${failedDocs} + ' com falha'
+                                    : 'Todos os ' + ${totalDocs} + ' documentos processados.')">Indexando…</span>
+                        <span class="ip-pct" id="ip-pct"
+                              th:text="${totalDocs > 0 ? T(java.lang.Math).round(indexedDocs * 100.0 / totalDocs) : 0} + '%'">0%</span>
+                    </div>
+                    <div class="ip-bar" id="ip-bar" th:attr="aria-valuenow=${indexedDocs},aria-valuemax=${totalDocs}"
+                         role="progressbar">
+                        <div class="ip-fill" id="ip-fill"
+                             th:style="'width:' + ${totalDocs > 0 ? (indexedDocs * 100.0 / totalDocs) : 0} + '%'"></div>
+                    </div>
+                    <div class="ip-foot">
+                        <span id="ip-elapsed">tempo: —</span>
+                        <span aria-hidden="true">·</span>
+                        <span id="ip-avg">média: —</span>
+                        <span aria-hidden="true">·</span>
+                        <span id="ip-eta">faltam: —</span>
+                    </div>
+                </div>
+
+                <div class="section-label" id="docs-label" th:text="#{import.docs.label}">DOCUMENTOS</div>
+
+                <div class="doc-filters" role="group" aria-label="Filtrar por status">
+                    <button type="button" class="chip active" data-filter="all"
+                            onclick="AcervoFilter.set('all', this)">Todos <span class="chip-count" data-count="all">0</span></button>
+                    <button type="button" class="chip" data-filter="INDEXED"
+                            onclick="AcervoFilter.set('INDEXED', this)">Indexados <span class="chip-count" data-count="INDEXED">0</span></button>
+                    <button type="button" class="chip" data-filter="PROCESSING"
+                            onclick="AcervoFilter.set('PROCESSING', this)">Processando <span class="chip-count" data-count="PROCESSING">0</span></button>
+                    <button type="button" class="chip" data-filter="FAILED"
+                            onclick="AcervoFilter.set('FAILED', this)">Falha <span class="chip-count" data-count="FAILED">0</span></button>
+                    <button type="button" class="chip" data-filter="CANCELLED"
+                            onclick="AcervoFilter.set('CANCELLED', this)">Cancelado <span class="chip-count" data-count="CANCELLED">0</span></button>
+                </div>
+
+                <div th:if="${view == 'list'}" class="doc-list" role="list" aria-labelledby="docs-label">
+                    <div th:each="d : ${documents}" class="doc-row" role="listitem"
+                         th:id="'doc-' + ${d.id}" th:data-status="${d.status.name()}"
+                         th:data-uploaded-at="${d.uploadedAt.toInstant().toEpochMilli()}"
+                         th:data-processed-at="${d.processedAt != null ? d.processedAt.toInstant().toEpochMilli() : ''}">
+                        <span class="badge" th:classappend="' ext-' + ${d.extension}" th:text="${d.extension}">PDF</span>
+                        <div class="grow">
+                            <div class="t" th:text="${d.originalName}">nome</div>
+                            <div class="m">
+                                <span th:text="${#numbers.formatDecimal(d.sizeBytes/1024.0/1024.0,1,2)} + ' MB'">0 MB</span>
+                                <span aria-hidden="true">·</span>
+                                <span class="doc-pages" th:text="${d.pages != null} ? ${d.pages} + ' págs' : ''">páginas</span>
+                                <span aria-hidden="true">·</span>
+                                <span class="doc-status"
+                                      th:classappend="' status-' + ${d.status.name().toLowerCase()}"
+                                      th:text="${#messages.msg('doc.status.' + d.status.name())}"
+                                      th:aria-label="'Status: ' + ${#messages.msg('doc.status.' + d.status.name())}">STATUS</span>
+                                <span aria-hidden="true">·</span>
+                                <span class="doc-timer" aria-label="Tempo de indexação">—</span>
+                            </div>
+                            <div class="doc-indeterminate" th:if="${d.status.name() == 'PROCESSING'}">
+                                <div class="di-bar"></div>
+                            </div>
+                            <div class="doc-error" role="alert"
+                                 th:text="${d.status.name() == 'FAILED' and d.failureReason != null ? d.failureReason : ''}"
+                                 th:style="${d.status.name() == 'FAILED' and d.failureReason != null ? '' : 'display:none'}">erro</div>
+                        </div>
+                        <div class="doc-actions">
+                            <a th:if="${d.status.name() == 'INDEXED'}"
+                               th:href="@{|/import/documents/${d.id}/summary|}"
+                               class="btn-outline" style="padding: 6px 11px; font-size: 12.5px;"
+                               title="Resumir documento (1 parágrafo / 1 página / mapa mental)">✎ Resumir</a>
+                            <button type="button" class="btn-stop"
+                                    th:if="${d.status.name() == 'PROCESSING'}"
+                                    th:data-doc-id="${d.id}"
+                                    onclick="AcervoStop.click(this)"
+                                    title="Parar indexação">■ Parar</button>
+                            <button type="button" class="btn-retry"
+                                    th:if="${d.status.name() == 'FAILED'}"
+                                    th:data-doc-id="${d.id}"
+                                    th:disabled="${processingDocs != null and processingDocs > 0}"
+                                    onclick="AcervoRetry.click(this)"
+                                    title="Tentar indexar novamente">↻ Tentar de novo</button>
+                            <button type="button" class="btn-resume"
+                                    th:if="${d.status.name() == 'CANCELLED'}"
+                                    th:data-doc-id="${d.id}"
+                                    th:disabled="${processingDocs != null and processingDocs > 0}"
+                                    onclick="AcervoRetry.click(this)"
+                                    title="Reiniciar indexação">▶ Reiniciar</button>
+                            <form th:action="@{'/import/documents/' + ${d.id} + '/delete'}" method="post"
+                                  th:data-confirm-title="#{import.docs.deleteConfirm.title}"
+                                  th:data-confirm="${#messages.msg('import.docs.deleteConfirm.message', d.originalName)}"
+                                  th:data-confirm-label="#{import.docs.deleteConfirm.label}"
+                                  onsubmit="return AcervoModal.confirmSubmit(event, this)">
+                                <input type="hidden" name="subjectId" th:value="${selected.id}"/>
+                                <button class="icon-btn" type="submit"
+                                        th:aria-label="${#messages.msg('import.docs.delete')} + ': ' + ${d.originalName}"
+                                        title="Excluir">🗑</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div th:if="${view == 'gallery'}" class="doc-gallery" role="list" aria-labelledby="docs-label">
+                    <div th:each="d : ${documents}" class="doc-card" role="listitem"
+                         th:id="'doc-' + ${d.id}" th:data-status="${d.status.name()}"
+                         th:data-uploaded-at="${d.uploadedAt.toInstant().toEpochMilli()}"
+                         th:data-processed-at="${d.processedAt != null ? d.processedAt.toInstant().toEpochMilli() : ''}">
+                        <div class="badge-big" th:classappend="' ext-' + ${d.extension}" aria-hidden="true">
+                            <span th:text="${d.extension}">PDF</span>
+                        </div>
+                        <div class="title" th:text="${d.originalName}">nome</div>
+                        <div class="m">
+                            <span th:text="${#numbers.formatDecimal(d.sizeBytes/1024.0/1024.0,1,2)} + ' MB'">0 MB</span>
+                            <span aria-hidden="true">·</span>
+                            <span class="doc-status"
+                                  th:classappend="' status-' + ${d.status.name().toLowerCase()}"
+                                  th:text="${#messages.msg('doc.status.' + d.status.name())}">STATUS</span>
+                            <span aria-hidden="true">·</span>
+                            <span class="doc-timer" aria-label="Tempo de indexação">—</span>
+                        </div>
+                        <div class="doc-indeterminate" th:if="${d.status.name() == 'PROCESSING'}">
+                            <div class="di-bar"></div>
+                        </div>
+                        <div class="doc-error" role="alert"
+                             th:text="${d.status.name() == 'FAILED' and d.failureReason != null ? d.failureReason : ''}"
+                             th:style="${d.status.name() == 'FAILED' and d.failureReason != null ? '' : 'display:none'}">erro</div>
+                        <div class="doc-actions"
+                             th:if="${d.status.name() == 'FAILED' or d.status.name() == 'CANCELLED' or d.status.name() == 'PROCESSING'}">
+                            <button type="button" class="btn-stop"
+                                    th:if="${d.status.name() == 'PROCESSING'}"
+                                    th:data-doc-id="${d.id}"
+                                    onclick="AcervoStop.click(this)"
+                                    title="Parar indexação">■ Parar</button>
+                            <button type="button" class="btn-retry"
+                                    th:if="${d.status.name() == 'FAILED'}"
+                                    th:data-doc-id="${d.id}"
+                                    th:disabled="${processingDocs != null and processingDocs > 0}"
+                                    onclick="AcervoRetry.click(this)"
+                                    title="Tentar indexar novamente">↻ Tentar de novo</button>
+                            <button type="button" class="btn-resume"
+                                    th:if="${d.status.name() == 'CANCELLED'}"
+                                    th:data-doc-id="${d.id}"
+                                    th:disabled="${processingDocs != null and processingDocs > 0}"
+                                    onclick="AcervoRetry.click(this)"
+                                    title="Reiniciar indexação">▶ Reiniciar</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div th:if="${#lists.isEmpty(documents)}" class="empty" th:text="#{import.docs.empty}">
+                    Nenhum documento ainda. Envie o primeiro acima.
+                </div>
+            </section>
+
+            <section class="docs-col empty-state" th:unless="${selected}" aria-labelledby="empty-title">
+                <div class="empty-state-card">
+                    <div class="empty-state-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="28" height="28" fill="none"
+                             stroke="currentColor" stroke-width="1.4"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>
+                        </svg>
+                    </div>
+                    <h2 id="empty-title" th:text="#{import.empty.title}">Selecione ou crie uma matéria</h2>
+                    <p th:text="#{import.empty.subtitle}">Escolha uma matéria à esquerda para enviar e gerenciar documentos.</p>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+<div th:replace="~{fragments/modal :: confirm}"></div>
+<script th:src="@{/js/acervo.js(v=36)}" defer></script>
+</body>
+</html>
