@@ -227,7 +227,34 @@ A tabela `retrieval_metric` guarda um snapshot por consulta — dá para medir q
 ## 🚀 Como rodar
 
 ### Pré-requisitos
-- **Java 21**, **Docker** e **[LM Studio](https://lmstudio.ai/)**.
+- **Java 21**, **Maven**, **Docker** e um servidor OpenAI-compat (**[LM Studio](https://lmstudio.ai/)**, Ollama, vLLM…).
+- No **Linux** e no **WSL2** o setup roda direto; no **Windows nativo**, use o **WSL2** — o script detecta e orienta.
+
+### ⚡ Setup automático (recomendado)
+
+O script [`setup.sh`](./setup.sh) prepara o ambiente com **um único comando**: valida **Java 21** e **Maven**, gera o `.env` (compose de produção), **baixa as dependências e compila**, sobe o **Postgres + pgvector** e **verifica o servidor de IA**.
+
+```bash
+./setup.sh
+```
+
+Acompanhe cada etapa com **barra de progresso e porcentagem**:
+
+```
+[5/6] Banco de dados (Postgres + pgvector)
+  ████████████████████████░░░░░░ 83%
+```
+
+**Opções:**
+
+| Comando | O que faz |
+|---------|-----------|
+| `./setup.sh` | Setup completo |
+| `./setup.sh -y` | Não-interativo (auto-instala o Maven no macOS/brew) |
+| `./setup.sh --no-docker` | Não sobe o Postgres |
+| `./setup.sh -h` | Ajuda |
+
+> **Idempotente**: pode rodar de novo com segurança. O **servidor de IA é externo** (LM Studio/Ollama) — o script só verifica se está no ar; siga o passo do **LM Studio** abaixo e depois rode a aplicação (passo 3️⃣).
 
 ### 1️⃣ LM Studio (modelos locais)
 1. Em **Discover**, baixe (filtre por **GGUF**):
@@ -240,12 +267,13 @@ A tabela `retrieval_metric` guarda um snapshot por consulta — dá para medir q
 ```bash
 docker compose up -d
 ```
+> Já rodou o `setup.sh`? Este passo (e o build) já foram feitos — pule para o 3️⃣.
 
 ### 3️⃣ Aplicação
 ```bash
 mvn spring-boot:run
 ```
-Abra **http://localhost:8080**.
+Abra **http://localhost:8080**. O schema é criado no primeiro boot (Hibernate + Spring AI) e o usuário inicial **`root@acervo.local`** é provisionado — defina a senha em `ACERVO_BOOTSTRAP_ROOT_PASSWORD` antes de subir.
 
 > Trocou o modelo de chat no LM Studio? Ajuste `ACERVO_CHAT_MODEL` (ou `application-dev.yml`).
 
