@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(docker compose *)",
-      "Bash(rm -rf /Users/wallacecampista/Documents/Códigos/Pessoal/Acervo/data/uploads/*)",
-      "Bash(docker exec *)"
-    ]
-  }
-}

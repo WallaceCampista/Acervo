@@ -7,3 +7,4 @@ data/uploads/
 data/index/
 .env
 .DS_Store
+.claude/
