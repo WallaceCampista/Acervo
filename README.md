@@ -52,12 +52,12 @@ Além do chat com RAG, o Acervo gera **flashcards com repetição espaçada, qui
 | **Janela de contexto adaptativa** | corta o contexto por **orçamento de tokens** em vez de top-K fixo |
 | **Embeddings com cache** | `CachingEmbeddingModel` (Caffeine) evita reembedar queries repetidas |
 | **Streaming de tokens (SSE)** | resposta token a token com UI otimista, estilo ChatGPT/Claude |
-| **Prompt engineering anti-alucinação** | *grounding* estrito ("responda só pelo contexto") + fallback honesto |
+| **Guardas anti-alucinação** | piso de similaridade no retrieval + **gate de abstenção** (recusa sem chamar o LLM) + *grounding* estrito no prompt |
 | **Geração estruturada + parsing robusto** | flashcards, quiz e mapas de tópicos parseados da saída do LLM |
-| **Avaliação & observabilidade de retrieval** | métricas por consulta em `retrieval_metric` + histogramas Prometheus p50/p95/p99 |
+| **Avaliação & observabilidade de retrieval** | retrieval-only via `/api/retrieval/preview`, gabarito com **recall@k / MRR** via `/api/retrieval/eval`, métricas por consulta em `retrieval_metric` + histogramas Prometheus p50/p95/p99 |
 | **IA local / privacidade** | integração OpenAI-compat apontando para LM Studio; nada sai da máquina |
 | **Guardas de qualidade de ingestão** | detecção de PDF escaneado antes de indexar lixo sem texto |
-| **Rigor de engenharia** | 49 testes com Testcontainers, CI, observabilidade, segurança e acessibilidade |
+| **Rigor de engenharia** | 61 testes com Testcontainers, CI, observabilidade, segurança e acessibilidade |
 
 ---
 
@@ -66,7 +66,7 @@ Além do chat com RAG, o Acervo gera **flashcards com repetição espaçada, qui
 ### 🔎 Chat com RAG
 - Respostas **ancoradas nos documentos** da matéria, com **painel de fontes** e barra de relevância por trecho.
 - **Streaming SSE** token a token; a mensagem do usuário aparece na hora e a resposta do assistente vai sendo preenchida ao vivo.
-- Fallback honesto — quando não há contexto suficiente, responde *"Não encontrei isso na nossa base de dados"* em vez de inventar.
+- Fallback honesto e **determinístico** — quando nenhum trecho passa no piso de relevância, responde *"Não encontrei isso na nossa base de dados"* sem sequer consultar o LLM, em vez de torcer para ele não inventar.
 - Cada resposta salva **citações rastreáveis** (documento + página) e o **tempo de geração**.
 
 ### 🤖 Ferramentas de estudo geradas por IA
@@ -86,20 +86,22 @@ Além do chat com RAG, o Acervo gera **flashcards com repetição espaçada, qui
 
 ## 🔎 Arquitetura de RAG
 
-O coração do projeto. Em vez de um `similaritySearch` ingênuo, o retrieval combina busca densa e esparsa, reordena por diversidade e ajusta o contexto ao tamanho da pergunta:
+O coração do projeto. Em vez de um `similaritySearch` ingênuo, o retrieval combina busca densa e esparsa, **descarta o que não passa num piso de relevância**, reordena por diversidade e ajusta o contexto ao tamanho da pergunta:
 
 ```mermaid
 flowchart LR
     Q([Pergunta do aluno]) --> CE[CachingEmbeddingModel<br/>Caffeine · TTL 1h]
     CE -->|cache miss| LE[LocalEmbeddingModel<br/>LM Studio /v1/embeddings]
-    CE --> VEC[Busca vetorial<br/>pgvector · cosine]
+    CE --> VEC[Busca vetorial<br/>pgvector · cosine<br/>similarity ≥ 0.5]
     LE --> VEC
-    Q --> FTS[Busca lexical<br/>Postgres FTS + índice GIN]
+    Q --> FTS[Busca lexical<br/>Postgres FTS + GIN<br/>ts_rank ≥ 0.01]
     VEC --> RRF{{Reciprocal Rank Fusion<br/>k = 60}}
     FTS --> RRF
     RRF --> MMR[MMR Reranker<br/>relevância × diversidade · λ=0.7]
     MMR --> ADPT[Contexto adaptativo<br/>corta por orçamento de tokens]
-    ADPT --> PR[Prompt ancorado<br/>contexto + pergunta]
+    ADPT --> GATE{Sobrou algum trecho?}
+    GATE -->|não| NO([Não encontrei isso<br/>na nossa base de dados])
+    GATE -->|sim| PR[Prompt ancorado<br/>contexto + pergunta]
     PR --> LLM[[ChatModel · LM Studio local]]
     LLM -->|SSE token a token| ANS([Resposta + citações])
     ADPT -.->|snapshot| MET[(retrieval_metric)]
@@ -107,15 +109,37 @@ flowchart LR
 
 **1. Retrieval híbrido + Reciprocal Rank Fusion.** A busca vetorial (`pgvector`, cosseno) roda **em paralelo** à busca lexical (`to_tsvector('portuguese', …)` + índice GIN) e os dois rankings são fundidos por **RRF (k=60)**. Resolve as queries com termos exatos onde a busca puramente semântica se perdia em paráfrase.
 
-**2. Reranking com MMR.** O `MmrReranker` reordena o pool fundido por **Maximum Marginal Relevance** (`λ=0.7`, configurável), equilibrando relevância e diversidade para eliminar trechos redundantes.
+**2. Piso de relevância nas duas pernas.** `min-similarity` (default `0.5`, ou seja distância cosseno < 0.5) na busca vetorial e `min-lexical-rank` (default `0.01`) no `ts_rank`. O corte acontece **antes do RRF** de propósito: depois da fusão o score é rank-based (`1/(k+rank)`) e não tem mais relação com similaridade — filtrar ali seria filtrar por posição. Sem esse piso, o pgvector é k-NN puro e devolve sempre os k vizinhos mais próximos por mais distantes que estejam, o que fazia o prompt rotular trecho irrelevante como "Contexto".
 
-**3. Contexto adaptativo.** Em vez de um top-K fixo, o contexto é cortado quando ultrapassa `max-context-tokens` (default 6000), mantendo um mínimo de trechos. Perguntas simples economizam tokens; perguntas complexas usam até o teto.
+**3. Gate de abstenção.** Se nada sobrou, o `RagService` responde *"Não encontrei isso na nossa base de dados"* **sem chamar o LLM**. A recusa passa a ser determinística em vez de depender do modelo local decidir sozinho não inventar — que é justamente o que um modelo pequeno faz mal quando recebe contexto ruim. Não se aplica quando há imagem anexada: nesse caminho a imagem é a fonte primária.
 
-**4. Embeddings locais com cache.** O `LocalEmbeddingModel` fala direto com `/v1/embeddings` do LM Studio (contornando um bug do Spring AI 1.0.0-M3 que exige `usage != null`, que o LM Studio não preenche). Um `CachingEmbeddingModel` (`@Primary`, Caffeine, TTL 1h) evita reembedar queries repetidas.
+**4. Reranking com MMR.** O `MmrReranker` reordena o pool fundido por **Maximum Marginal Relevance** (`λ=0.7`, configurável), equilibrando relevância e diversidade para eliminar trechos redundantes.
 
-**5. Geração ancorada + streaming.** O `RagService` monta um prompt com *grounding* estrito e transmite a resposta por **SSE** (`text/event-stream`). Ao final, um evento `done` traz as citações renderizadas no painel de fontes.
+**5. Contexto adaptativo.** Em vez de um top-K fixo, o contexto é cortado quando ultrapassa `max-context-tokens` (default 6000), mantendo um mínimo de trechos. Perguntas simples economizam tokens; perguntas complexas usam até o teto.
 
-**6. Avaliação embutida.** Cada retrieval grava um snapshot em `retrieval_metric` (`chunks_retrieved`, `avg_distance`, `top1_distance`, `no_results`, `used_lexical_fusion`) — base para detectar regressões de qualidade via SQL.
+**6. Embeddings locais com cache.** O `LocalEmbeddingModel` fala direto com `/v1/embeddings` do LM Studio (contornando um bug do Spring AI 1.0.0-M3 que exige `usage != null`, que o LM Studio não preenche). Um `CachingEmbeddingModel` (`@Primary`, Caffeine, TTL 1h) evita reembedar queries repetidas.
+
+**7. Geração ancorada + streaming.** O `RagService` monta um prompt com *grounding* estrito e transmite a resposta por **SSE** (`text/event-stream`). Ao final, um evento `done` traz as citações renderizadas no painel de fontes.
+
+**8. Avaliação embutida.** Cada retrieval grava um snapshot em `retrieval_metric` (`chunks_retrieved`, `avg_distance`, `top1_distance`, `no_results`, `used_lexical_fusion`) — base para detectar regressões de qualidade via SQL.
+
+### 🔬 Testar o retrieval sem gerar
+
+A qualidade de um RAG é decidida no retrieval, mas o sintoma aparece na geração — o que confunde o diagnóstico e custa uma chamada ao LLM por tentativa. Duas rotas somente-leitura resolvem isso; nenhuma cria conversa, mensagem ou métrica, e nenhuma chama o modelo de chat:
+
+```bash
+# O que o LLM receberia para esta pergunta
+curl -b cookies.txt \
+  "localhost:8080/api/retrieval/preview?subjectId=$SUBJECT&q=o+que+e+uniao"
+
+# Roda um gabarito e devolve recall@k, MRR e taxa de abstenção
+curl -b cookies.txt -X POST \
+  "localhost:8080/api/retrieval/eval?subjectId=$SUBJECT" \
+  -H 'Content-Type: application/json' \
+  -d '[{"question":"o que é união?","expectedSnippets":["A ∪ B"]}]'
+```
+
+O `preview` devolve rank, `chunkId`, documento, página, `distance`/`similarity`, origem (`VECTOR`/`LEXICAL`/`BOTH`) e `wouldAbstain`. O gabarito casa por `expectedChunkIds` (preciso — pegue os ids no `preview`) ou por `expectedSnippets` (prático — casefold, sem acento, espaçamento colapsado). É a ferramenta para calibrar `min-similarity`: subir melhora precisão e piora a taxa de abstenção; o número que equilibra os dois depende do seu material.
 
 > **Guarda de ingestão:** o `PdfExtractor` conta páginas com pouco texto extraível; se ≥70% estão "vazias", marca o documento como PDF escaneado (`FAILED`) e orienta rodar OCR — evitando indexar um PDF sem texto.
 
@@ -162,7 +186,7 @@ Todas ancoradas nos chunks do próprio aluno, orquestradas pelo `AiGenerationSer
 | Tecnologia | Papel |
 |---|---|
 | **Docker / Docker Compose** | Postgres+pgvector (dev) e stack de produção |
-| **Testcontainers** | 49 testes contra Postgres+pgvector efêmero |
+| **Testcontainers** | 61 testes contra Postgres+pgvector efêmero |
 | **Micrometer + Prometheus** | Métricas e histogramas de latência (p50/p95/p99) |
 | **GitHub Actions** | CI: `mvn verify` + build/push da imagem (GHCR) |
 
@@ -287,6 +311,17 @@ Abra **http://localhost:8080**. O schema é criado no primeiro boot (Hibernate +
 | `STORAGE_DIR` | `./data/uploads` | Diretório dos arquivos enviados |
 | `SPRING_PROFILES_ACTIVE` | `dev` | `dev` (local) · `prod` (env externas) |
 
+### Knobs de retrieval (`application.yml`, prefixo `acervo.rag`)
+| Chave | Default | Descrição |
+|---|---|---|
+| `min-similarity` | `0.5` | Piso de similaridade cosseno na busca vetorial. **Principal defesa contra alucinação** — calibre com `/api/retrieval/eval` |
+| `min-lexical-rank` | `0.01` | Piso de `ts_rank` na busca lexical |
+| `top-k` | `6` | Trechos no contexto final (o pool de candidatos é `top-k × 3`) |
+| `min-chunks` | `3` | Piso do corte por orçamento de tokens |
+| `max-context-tokens` | `6000` | Teto do contexto adaptativo |
+| `mmr-lambda` | `0.7` | `1` = só relevância · `0` = só diversidade |
+| `chunk-size` / `chunk-overlap` | `500` / `80` | Tamanho e sobreposição do chunk, em tokens aproximados |
+
 ### Produção (Docker)
 `Dockerfile` multi-stage (Maven → JRE 21 slim, usuário não-root) + `docker-compose.prod.yml` (Postgres + app com volumes):
 ```bash
@@ -299,14 +334,14 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 ## 🧪 Testes
 
-**49 testes** cobrindo persistência, o pipeline de RAG (reranker MMR, cache de embeddings), ingestão (detecção de PDF escaneado) e o fluxo de chat ponta a ponta (incluindo **streaming SSE**). Rodam contra um Postgres+pgvector real via **Testcontainers** — sem mocks de banco.
+**61 testes** cobrindo persistência, o pipeline de RAG (reranker MMR, cache de embeddings), ingestão (detecção de PDF escaneado) e o fluxo de chat ponta a ponta (incluindo **streaming SSE**). Rodam contra um Postgres+pgvector real via **Testcontainers** — sem mocks de banco.
 
 ```bash
 mvn test      # testes
 mvn verify    # testes + cobertura JaCoCo (mín. 60% em rag/ e ingest/)
 ```
 
-Destaques: `RagServiceTest` (filtro por matéria, citações, fallback, `retrieval_metric`), `MmrRerankerTest` (diversificação), `CachingEmbeddingModelTest` (hit/miss), `PdfExtractorTest` (PDF escaneado), `ChatFlowIntegrationTest` (E2E síncrono + streaming).
+Destaques: `RagServiceTest` (filtro por matéria, threshold de similaridade, gate de abstenção, citações, `retrieval_metric`), `RetrievalEvalServiceTest` (recall@k, MRR, isolamento de falha por caso), `RetrievalDebugControllerTest` (contrato das rotas + acesso negado a matéria alheia), `MmrRerankerTest` (diversificação), `CachingEmbeddingModelTest` (hit/miss), `PdfExtractorTest` (PDF escaneado), `ChatFlowIntegrationTest` (E2E síncrono + streaming).
 
 ---
 

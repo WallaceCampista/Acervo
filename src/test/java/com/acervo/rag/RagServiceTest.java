@@ -33,6 +33,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -90,8 +91,8 @@ class RagServiceTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("similaritySearch é chamado com top-K e filtro por subjectId")
-    void topKAndSubjectFilter() {
+    @DisplayName("similaritySearch é chamado com top-K, threshold de similaridade e filtro por subjectId")
+    void topKThresholdAndSubjectFilter() {
         stubChat("União é tudo que está em A ou em B.");
         when(vectorStore.similaritySearch(any(SearchRequest.class)))
                 .thenReturn(List.of(retrievedDocument()));
@@ -104,6 +105,10 @@ class RagServiceTest extends AbstractIntegrationTest {
         // topK vem de acervo.rag.top-k (3 em test, 6 em dev) — só validamos
         // que foi setado, não o valor exato.
         assertThat(req.getTopK()).isPositive();
+        // Sem esse piso o pgvector devolveria os k vizinhos mais próximos por
+        // mais distantes que estivessem — a porta de entrada da alucinação.
+        assertThat(req.getSimilarityThreshold())
+                .isGreaterThan(SearchRequest.SIMILARITY_THRESHOLD_ACCEPT_ALL);
         assertThat(req.getFilterExpression().toString())
                 .contains(subject.getId().toString());
     }
@@ -130,24 +135,40 @@ class RagServiceTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("retrieval vazio gera resposta sem citations (fallback do LLM)")
-    void emptyRetrievalNoCitations() {
-        stubChat("Não encontrei isso na nossa base de dados.");
+    @DisplayName("nada passa no filtro: abstém sem chamar o LLM, e sem citations")
+    void abstainsWithoutCallingModel() {
         when(vectorStore.similaritySearch(any(SearchRequest.class)))
                 .thenReturn(List.of());
 
         Message saved = ragService.answer(conversation.getId(), "pergunta fora do escopo");
 
+        // O ponto do gate: a recusa é determinística. Antes o prompt ia pro
+        // LLM com contexto vazio e dependia dele decidir não inventar.
+        verify(chatModel, never()).call(any(Prompt.class));
         Message reloaded = messages.findByIdWithCitations(saved.getId()).orElseThrow();
         assertThat(reloaded.getCitations()).isEmpty();
         assertThat(reloaded.getContent())
-                .contains("Não encontrei isso na nossa base de dados.");
+                .isEqualTo("Não encontrei isso na nossa base de dados.");
+        assertThat(reloaded.getResponseTimeMs()).isNotNull().isGreaterThanOrEqualTo(0L);
+    }
+
+    @Test
+    @DisplayName("imagem anexada não é abstida mesmo sem contexto (a imagem é a fonte)")
+    void visionPathIgnoresAbstentionGate() {
+        stubChat("A imagem mostra um diagrama de Venn.");
+        when(vectorStore.similaritySearch(any(SearchRequest.class)))
+                .thenReturn(List.of());
+
+        Message saved = ragService.answer(conversation.getId(), "o que é isto?",
+                new byte[]{1, 2, 3}, "image/png");
+
+        verify(chatModel).call(any(Prompt.class));
+        assertThat(saved.getContent()).isEqualTo("A imagem mostra um diagrama de Venn.");
     }
 
     @Test
     @DisplayName("título da conversa vira a pergunta na primeira interação")
     void titleSetFromFirstQuestion() {
-        stubChat("ok");
         when(vectorStore.similaritySearch(any(SearchRequest.class)))
                 .thenReturn(List.of());
         assertThat(conversation.getTitle()).isEqualTo("Nova conversa");
@@ -162,8 +183,9 @@ class RagServiceTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("falha no ChatModel vira mensagem amigável persistida com ⚠")
     void chatModelFailureBecomesFriendlyMessage() {
+        // Precisa de match: com retrieval vazio o gate abstém antes do LLM.
         when(vectorStore.similaritySearch(any(SearchRequest.class)))
-                .thenReturn(List.of());
+                .thenReturn(List.of(retrievedDocument()));
         when(chatModel.call(any(Prompt.class)))
                 .thenThrow(new RuntimeException("Connection refused"));
 
@@ -193,6 +215,25 @@ class RagServiceTest extends AbstractIntegrationTest {
         assertThat(saved.getChunksRetrieved()).isEqualTo(1);
         assertThat(saved.isNoResults()).isFalse();
         assertThat(saved.getQuestionLength()).isEqualTo("pergunta com métrica".length());
+        // Nenhum termo da pergunta aparece no chunk semeado, então a perna
+        // lexical não contribuiu. O campo mede a fusão de fato — antes era
+        // hard-coded por caminho de código e vinha true aqui.
+        assertThat(saved.isUsedLexicalFusion()).isFalse();
+    }
+
+    @Test
+    @DisplayName("usedLexicalFusion=true só quando a busca lexical realmente casa")
+    void lexicalFusionFlagReflectsRealHit() {
+        stubChat("ok");
+        when(vectorStore.similaritySearch(any(SearchRequest.class)))
+                .thenReturn(List.of(retrievedDocument()));
+
+        // "união" está no conteúdo do chunk semeado → FTS português casa.
+        ragService.answer(conversation.getId(), "união");
+
+        var saved = retrievalMetricRepo().findAll().stream()
+                .filter(m -> m.getConversationId().equals(conversation.getId()))
+                .reduce((a, b) -> b).orElseThrow();
         assertThat(saved.isUsedLexicalFusion()).isTrue();
     }
 
