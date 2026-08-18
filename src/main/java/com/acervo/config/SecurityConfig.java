@@ -64,7 +64,13 @@ public class SecurityConfig {
                     .ignoringRequestMatchers("/actuator/**",
                             // SSE não recebe CSRF token do browser via header;
                             // o endpoint é GET, então é seguro ignorar.
-                            "/chat/conversations/*/stream"))
+                            "/chat/conversations/*/stream",
+                            // Diagnóstico de retrieval, chamado por curl/script.
+                            // Continua exigindo sessão autenticada e posse da
+                            // matéria; é somente leitura (não cria conversa,
+                            // mensagem nem métrica) e o atacante cross-origin
+                            // não conseguiria ler a resposta de qualquer forma.
+                            "/api/retrieval/**"))
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers(
                             "/landing", "/login", "/signup",
