@@ -85,6 +85,20 @@ class ChunkRepositoryTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("busca lexical respeita o piso de ts_rank")
+    void lexicalSearchHonoursMinRank() {
+        chunks.save(makeChunk(0, "A fotossíntese converte luz em energia química."));
+        chunks.flush();
+
+        // Piso zerado: o match aparece.
+        assertThat(chunks.findTopByLexicalSearch(subject.getId(), "fotossíntese", 0.0, 10))
+                .hasSize(1);
+        // Piso alto demais: o mesmo match é descartado antes de entrar na fusão.
+        assertThat(chunks.findTopByLexicalSearch(subject.getId(), "fotossíntese", 0.99, 10))
+                .isEmpty();
+    }
+
+    @Test
     @DisplayName("excluir document faz cascade nos chunks")
     void cascadeOnDocument() {
         chunks.save(makeChunk(0, "x"));

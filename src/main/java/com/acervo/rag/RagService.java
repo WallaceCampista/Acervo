@@ -66,6 +66,14 @@ public class RagService {
         use-o para complementar a análise da imagem.
         """;
 
+    /**
+     * Resposta devolvida pelo gate de abstenção quando nenhum trecho passou no
+     * filtro de relevância. Texto idêntico à frase instruída no
+     * {@link #SYSTEM_PROMPT} — o usuário vê a mesma mensagem venha ela do gate
+     * ou do modelo, mas pelo gate ela é <em>garantida</em>.
+     */
+    static final String NO_CONTEXT_ANSWER = "Não encontrei isso na nossa base de dados.";
+
     private final VectorStore vectorStore;
     private final ChatModel chatModel;
     private final ChunkRepository chunkRepository;
@@ -93,6 +101,19 @@ public class RagService {
     @Value("${acervo.rag.max-context-tokens:6000}")
     private int maxContextTokens;
 
+    /**
+     * Similaridade mínima (cosseno, {@code 1 - distância}) pra um chunk entrar
+     * no pool de candidatos. Sem esse piso o pgvector devolve sempre os k
+     * vizinhos mais próximos por mais distantes que estejam — e o prompt
+     * acabava rotulando lixo como "Contexto".
+     */
+    @Value("${acervo.rag.min-similarity:0.5}")
+    private double minSimilarity;
+
+    /** Piso de {@code ts_rank} na perna lexical. Ver ChunkRepository. */
+    @Value("${acervo.rag.min-lexical-rank:0.01}")
+    private double minLexicalRank;
+
     @Timed(value = "acervo.rag.answer", description = "Tempo de resposta síncrona do RAG")
     @Transactional
     public Message answer(UUID conversationId, String question) {
@@ -114,13 +135,21 @@ public class RagService {
         long t0 = System.currentTimeMillis();
         saveUserMessageAndTitle(conv, question, imageData, imageMime);
 
+        boolean hasImage = imageData != null && imageData.length > 0 && imageMime != null;
         try {
             // Sem pergunta textual não há o que buscar no acervo — a imagem
             // é a fonte. Com pergunta, mantém o retrieval híbrido normal.
-            List<Document> matches = (question != null && !question.isBlank())
-                    ? retrieve(conv.getSubject().getId(), question)
-                    : List.of();
-            recordRetrievalMetric(conv.getId(), question, matches, true);
+            Retrieved retrieved = (question != null && !question.isBlank())
+                    ? retrieveInternal(conv.getSubject().getId(), question)
+                    : Retrieved.empty();
+            List<Document> matches = retrieved.docs();
+            recordRetrievalMetric(conv.getId(), question, retrieved);
+
+            if (shouldAbstain(matches, hasImage)) {
+                return persistAssistantWithCitations(conv, NO_CONTEXT_ANSWER, List.of(),
+                        System.currentTimeMillis() - t0);
+            }
+
             Prompt prompt = buildPrompt(matches, question, imageData, imageMime);
             String answer = chatModel.call(prompt).getResult().getOutput().getContent();
             return persistAssistantWithCitations(conv, answer, matches,
@@ -142,6 +171,19 @@ public class RagService {
         long t0 = System.currentTimeMillis();
         try {
             Prepared prep = self.prepareRetrieval(conversationId, question);
+
+            // Gate de abstenção: nada passou no filtro de relevância, então
+            // não há o que transmitir. Streaming nunca carrega imagem (o
+            // upload vai pelo POST multipart), logo hasImage é sempre false.
+            if (shouldAbstain(prep.matches(), false)) {
+                self.persistAssistantById(conversationId, NO_CONTEXT_ANSWER,
+                        List.of(), System.currentTimeMillis() - t0);
+                sendEvent(emitter, "message", encodeToken(NO_CONTEXT_ANSWER));
+                sendEvent(emitter, "done", "");
+                emitter.complete();
+                return;
+            }
+
             StringBuilder accumulator = new StringBuilder();
 
             chatModel.stream(prep.prompt())
@@ -150,14 +192,7 @@ public class RagService {
                                 String token = extractDelta(chunk);
                                 if (token == null || token.isEmpty()) return;
                                 accumulator.append(token);
-                                // Percent-encode pra preservar espaços
-                                // líderes (BPE) que o parser SSE removeria.
-                                // URLEncoder usa form-encoding (espaço → '+');
-                                // normalizamos pra percent-encoding por causa
-                                // do decodeURIComponent no browser.
-                                sendEvent(emitter, "message",
-                                        URLEncoder.encode(token, StandardCharsets.UTF_8)
-                                                  .replace("+", "%20"));
+                                sendEvent(emitter, "message", encodeToken(token));
                             },
                             error -> {
                                 String friendly = failureTranslator.translate(error);
@@ -201,10 +236,34 @@ public class RagService {
     public Prepared prepareRetrieval(UUID conversationId, String question) {
         Conversation conv = conversationRepository.findById(conversationId).orElseThrow();
         saveUserMessageAndTitle(conv, question);
-        List<Document> matches = retrieve(conv.getSubject().getId(), question);
-        recordRetrievalMetric(conv.getId(), question, matches, false);
-        Prompt prompt = buildPrompt(matches, question);
-        return new Prepared(prompt, matches);
+        Retrieved retrieved = retrieveInternal(conv.getSubject().getId(), question);
+        recordRetrievalMetric(conv.getId(), question, retrieved);
+        Prompt prompt = buildPrompt(retrieved.docs(), question);
+        return new Prepared(prompt, retrieved.docs());
+    }
+
+    /**
+     * Gate de abstenção. Quando nenhum trecho passou no filtro de relevância,
+     * chamar o LLM é contraproducente: ele responderia pelo conhecimento
+     * paramétrico dele — que é justamente a alucinação que o RAG existe pra
+     * evitar. Devolver a recusa aqui torna o comportamento determinístico em
+     * vez de depender da boa vontade do modelo local.
+     *
+     * <p>Não se aplica quando há imagem anexada: nesse caminho a imagem é a
+     * fonte primária e o contexto documental é só complemento opcional.
+     */
+    private boolean shouldAbstain(List<Document> matches, boolean hasImage) {
+        return matches.isEmpty() && !hasImage;
+    }
+
+    /**
+     * Percent-encode pra preservar espaços líderes (BPE) que o parser SSE
+     * removeria. {@link URLEncoder} usa form-encoding (espaço → {@code '+'});
+     * normalizamos pra percent-encoding por causa do {@code decodeURIComponent}
+     * no browser.
+     */
+    private static String encodeToken(String token) {
+        return URLEncoder.encode(token, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     @Transactional
@@ -253,6 +312,35 @@ public class RagService {
     /** Constante k do Reciprocal Rank Fusion. 60 é o default da literatura. */
     private static final int RRF_K = 60;
 
+    /** Origem de um chunk no retrieval híbrido — só pra diagnóstico. */
+    public enum Source { VECTOR, LEXICAL, BOTH }
+
+    /**
+     * Resultado do retrieval com os contadores de cada perna. Os contadores
+     * existem pra que a inspeção (retrieval-only) e a métrica saibam *por que*
+     * o resultado ficou como ficou, sem ter que rodar a busca de novo.
+     */
+    public record Retrieved(List<Document> docs, int vectorHits, int lexicalHits,
+                            int fusedPool, Map<UUID, Source> sources) {
+
+        public static Retrieved empty() {
+            return new Retrieved(List.of(), 0, 0, 0, Map.of());
+        }
+    }
+
+    /**
+     * Retrieval híbrido, exposto pra inspeção sem geração — é exatamente o
+     * mesmo caminho que a resposta usa, então o que se vê aqui é o que o LLM
+     * receberia. Ver {@code RetrievalEvalService}.
+     */
+    public Retrieved inspect(UUID subjectId, String question) {
+        return retrieveInternal(subjectId, question);
+    }
+
+    private List<Document> retrieve(UUID subjectId, String question) {
+        return retrieveInternal(subjectId, question).docs();
+    }
+
     /**
      * Hybrid retrieval: combina busca vetorial e busca lexical (Postgres FTS)
      * via Reciprocal Rank Fusion. Pesca {@code topK * 3} candidatos de cada
@@ -260,31 +348,42 @@ public class RagService {
      *
      * <p>Resolve o caso onde a busca vetorial perde por excesso de paráfrase —
      * "o que diz a página 14?" depende mais de match exato que de semântica.
+     *
+     * <p><strong>O corte por relevância acontece nas duas pernas, antes do
+     * RRF.</strong> Depois da fusão o score é rank-based ({@code 1/(k+rank)}),
+     * sem relação com similaridade — filtrar ali seria filtrar por posição, não
+     * por qualidade. Consequência desejada: quando nada é relevante o pool sai
+     * vazio, e é isso que arma o gate de abstenção.
      */
-    private List<Document> retrieve(UUID subjectId, String question) {
+    private Retrieved retrieveInternal(UUID subjectId, String question) {
         // Pega bastante candidato pra dar margem ao reranker MMR diversificar.
         int candidates = Math.max(topK * 3, 12);
 
         List<Document> vectorMatches = vectorStore.similaritySearch(
                 SearchRequest.query(question)
                         .withTopK(candidates)
+                        .withSimilarityThreshold(minSimilarity)
                         .withFilterExpression("subjectId == '" + subjectId + "'"));
         List<UUID> lexicalIds = safeLexicalSearch(subjectId, question, candidates);
 
         // Score RRF por chunkId + dicionário pra recuperar o Document
         Map<UUID, Double> scores = new HashMap<>();
         Map<UUID, Document> byChunkId = new LinkedHashMap<>();
+        Map<UUID, Source> sources = new HashMap<>();
 
         for (int i = 0; i < vectorMatches.size(); i++) {
             Document d = vectorMatches.get(i);
             UUID chunkId = parseChunkId(d);
             if (chunkId == null) continue;
             byChunkId.putIfAbsent(chunkId, d);
+            sources.put(chunkId, Source.VECTOR);
             scores.merge(chunkId, 1.0 / (RRF_K + i + 1), Double::sum);
         }
         for (int i = 0; i < lexicalIds.size(); i++) {
             UUID chunkId = lexicalIds.get(i);
             scores.merge(chunkId, 1.0 / (RRF_K + i + 1), Double::sum);
+            // Ausente → LEXICAL; já vindo do vetorial → BOTH.
+            sources.merge(chunkId, Source.LEXICAL, (existing, incoming) -> Source.BOTH);
             if (!byChunkId.containsKey(chunkId)) {
                 Document built = buildDocumentFromLexicalChunk(chunkId);
                 if (built != null) byChunkId.put(chunkId, built);
@@ -304,7 +403,8 @@ public class RagService {
         // Contexto adaptativo: corta antes de topK se passou do orçamento
         // de tokens — pergunta simples economiza, pergunta complexa pega tudo
         // até o limite. Mínimo de minChunks pra não sair pelado.
-        return cutByTokenBudget(reranked);
+        return new Retrieved(cutByTokenBudget(reranked), vectorMatches.size(),
+                lexicalIds.size(), fused.size(), sources);
     }
 
     /**
@@ -332,7 +432,8 @@ public class RagService {
 
     private List<UUID> safeLexicalSearch(UUID subjectId, String question, int limit) {
         try {
-            return chunkRepository.findTopByLexicalSearch(subjectId, question, limit);
+            return chunkRepository.findTopByLexicalSearch(
+                    subjectId, question, minLexicalRank, limit);
         } catch (Exception e) {
             // Lexical é complementar — se falhar (query mal formada, etc),
             // segue só com o vetorial e loga em debug.
@@ -366,11 +467,19 @@ public class RagService {
     /**
      * Persiste um snapshot do retrieval pra análise posterior. Falhas aqui
      * são engolidas pra não atrapalhar o fluxo principal de resposta.
+     *
+     * <p>{@code usedLexicalFusion} reflete se a perna lexical de fato trouxe
+     * candidato — antes era hard-coded por caminho de código (true no síncrono,
+     * false no streaming), o que media qual método rodou em vez de medir a
+     * fusão. Como os dois caminhos chamam o mesmo retrieval, o campo não
+     * distinguia nada.
      */
     private void recordRetrievalMetric(UUID conversationId, String question,
-                                       List<Document> matches, boolean usedLexicalFusion) {
+                                       Retrieved retrieved) {
         try {
-            int size = matches != null ? matches.size() : 0;
+            List<Document> matches = retrieved.docs();
+            boolean usedLexicalFusion = retrieved.lexicalHits() > 0;
+            int size = matches.size();
             Double avg = null;
             Double top1 = null;
             if (size > 0) {
