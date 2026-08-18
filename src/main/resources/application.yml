@@ -43,6 +43,12 @@ acervo:
     max-context-tokens: 6000
     chunk-size: 500
     chunk-overlap: 80
+    # Piso de relevância. Abaixo disso o trecho nem entra no pool — e se nada
+    # passar, o RagService abstém sem chamar o LLM (ver shouldAbstain).
+    # Calibre com /api/retrieval/eval antes de mexer: subir demais faz o bot
+    # recusar pergunta legítima; baixar demais reabre a porta pra alucinação.
+    min-similarity: 0.5
+    min-lexical-rank: 0.01
 
 server:
   port: 8080

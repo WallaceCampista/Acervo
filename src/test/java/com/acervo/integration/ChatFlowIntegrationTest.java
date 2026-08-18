@@ -116,20 +116,26 @@ class ChatFlowIntegrationTest extends AbstractIntegrationTest {
         return new AcervoUserDetails(user);
     }
 
-    @Test
-    @DisplayName("envia pergunta → resposta persistida com citation e responseTimeMs")
-    void fullFlow() throws Exception {
+    /**
+     * Match plausível pro VectorStore mockado. Necessário em qualquer teste que
+     * precise chegar ao ChatModel: com retrieval vazio o gate de abstenção do
+     * RagService responde direto, sem chamar o LLM.
+     */
+    private org.springframework.ai.document.Document retrievedDocument() {
         Map<String, Object> meta = new HashMap<>();
         meta.put("chunkId", chunk.getId().toString());
         meta.put("documentName", "aula01.pdf");
         meta.put("pageLabel", "p. 14");
         meta.put("distance", 0.18);
-        org.springframework.ai.document.Document retrieved =
-                new org.springframework.ai.document.Document(
-                        chunk.getId().toString(),
-                        chunk.getContent(), meta);
+        return new org.springframework.ai.document.Document(
+                chunk.getId().toString(), chunk.getContent(), meta);
+    }
+
+    @Test
+    @DisplayName("envia pergunta → resposta persistida com citation e responseTimeMs")
+    void fullFlow() throws Exception {
         when(vectorStore.similaritySearch(any(SearchRequest.class)))
-                .thenReturn(List.of(retrieved));
+                .thenReturn(List.of(retrievedDocument()));
 
         String answerText = "Rasterização é o processo de converter "
                 + "primitivas geométricas em pixels.";
@@ -178,7 +184,7 @@ class ChatFlowIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("erro do LLM vira mensagem amigável persistida (sem 500)")
     void llmFailureBecomesFriendlyMessage() throws Exception {
         when(vectorStore.similaritySearch(any(SearchRequest.class)))
-                .thenReturn(List.of());
+                .thenReturn(List.of(retrievedDocument()));
         when(chatModel.call(any(Prompt.class)))
                 .thenThrow(new RuntimeException("Connection refused"));
 
@@ -255,7 +261,7 @@ class ChatFlowIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("/stream: erro do LLM durante streaming vira mensagem amigável")
     void streamingErrorFlow() throws Exception {
         when(vectorStore.similaritySearch(any(SearchRequest.class)))
-                .thenReturn(List.of());
+                .thenReturn(List.of(retrievedDocument()));
         when(chatModel.stream(any(Prompt.class)))
                 .thenReturn(Flux.error(new RuntimeException("Connection refused")));
 

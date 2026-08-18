@@ -33,6 +33,8 @@ acervo:
     top-k: 3
     chunk-size: 200
     chunk-overlap: 40
+    min-similarity: 0.5
+    min-lexical-rank: 0.01
 
 logging:
   level:
